@@ -1,23 +1,24 @@
-// reading a text file
 #include <iostream>
 #include <fstream>
 #include <string>
 using namespace std;
 
-char ch;
-fstream fin("sample.txt", fstream::in);
+char c;
+ifstream file;
 
 char getChar(){
-    if(fin >> noskipws >> ch){
-        return ch ;
-    }
-    return 0;
+    if(file.is_open())
+        if (!file.eof()) //eof check mikone ke be akhare file residim ya na
+        {
+            file >> c ;
+            return c;
+        }
+    
+    return '\0';
+    
 }
 
-string next
-
-int main () {
-    
-    return 0;
+void ungetchar(){
+    file.seekg(1,ios::cur);
 }
 

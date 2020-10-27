@@ -7,8 +7,6 @@ using namespace std;
 char c;
 ifstream file;
 
-char buffer [256];
-
 char getChar(){
     if(file.is_open())
         if (!file.eof()) //eof check mikone ke be akhare file residim ya na
@@ -65,4 +63,27 @@ int main () {
 //     else break;
 //   }
 //   return 0;
+// }
+
+// reading a text file
+// #include <iostream>
+// #include <fstream>
+// #include <string>
+// using namespace std;
+
+// char ch;
+// fstream fin("sample.txt", fstream::in);
+
+// char getChar(){
+//     if(fin >> noskipws >> ch){
+//         return ch ;
+//     }
+//     return 0;
+// }
+
+// string next
+
+// int main () {
+    
+//     return 0;
 // }
