@@ -20,7 +20,7 @@ char getChar(){
 }
 
 void ungetchar(){
-    file.seekg(1,ios::cur);
+    file.seekg(-1,ios::cur);
 }
 
 int main () {
