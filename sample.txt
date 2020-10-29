@@ -1,5 +1,4 @@
-var = 4     
-hiii
-#whoami !please guess
-hoe
-saharjooon
+num example(list A)#tarif function
+{
+    return (listlen(A))+1);
+}

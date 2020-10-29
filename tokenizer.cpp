@@ -47,13 +47,10 @@ string checkOp(char ch){
     return a;
 }
 
-int invalidChar(char ch){ //todo
-    return 0;
-}
 
 string getString(string answer, char ch){
     //todo check string is valid or not
-    while (! file.eof() && ch != '\0' && ! isOpChar(ch) && ch != ' ' && ch != '\n' && ch != '#' && ! invalidChar(ch) )
+    while (! file.eof() && ch != '\0' && ! isOpChar(ch) && ch != ' ' && ch != '\n' && ch != '#' )
     {
             answer += ch;
             ch = getChar();
@@ -97,7 +94,7 @@ string nextToken(){
     }
     else {
         answer = getString(answer, ch);
-        if (answer == " " || answer == "\n"){
+        if (answer == " " || answer == "\n" || answer == "\r"){
             nextToken();
         }
         return answer;
@@ -107,8 +104,10 @@ string nextToken(){
 }
 
 int main () {
-    file.open ("sample.txt");
-    char ch1 ;
+    cout << "Enter name of file\n";
+    string name;
+    cin >> name;
+    file.open (name);
     string line;
     while(! file.eof() ){
         line = nextToken();
