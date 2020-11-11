@@ -109,10 +109,13 @@ int main () {
     cin >> name;
     file.open (name);
     string line;
-    while(! file.eof() ){
-        line = nextToken();
-        cout << line << '\n';
+    if(file.is_open()){
+        while(! file.eof() ){
+            line = nextToken();
+            cout << line << '\n';
+        }
     }
+    
 
   return 0;
 }
