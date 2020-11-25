@@ -69,7 +69,7 @@ void skipComment(){
 }
 
 char skipSpace(char ch){
-    while (!file.eof() && (ch == ' ' || ch == '\n' || ch == '\r' )){
+    while (!file.eof() && (ch == ' ' || ch == '\n' || ch == '\r'  || ch == '\t')){
         ch = getChar();
     }
     return ch;
@@ -94,7 +94,7 @@ string nextToken(){
     }
     else {
         answer = getString(answer, ch);
-        if (answer == " " || answer == "\n" || answer == "\r"){
+        if (answer == " " || answer == "\n" || answer == "\r" || answer == "\t"){
             nextToken();
         }
         return answer;

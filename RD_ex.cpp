@@ -22,6 +22,7 @@ char c;
 ifstream file;
 string token;
 int num_err;
+int count_line;
 
 char getChar();
 void ungetchar();
@@ -56,7 +57,8 @@ int main () {
     {
         cout << "file opened successfully !\n";
     }
-    
+
+    count_line = 0;
     token = nextToken();
     num_err = 0;
     startgrammer();
@@ -81,7 +83,8 @@ void ungetchar(){
 int isOpChar(char ch){
     if(ch == '[' || ch == ']' || ch == '(' || ch == ')' ||
                  ch == '=' || ch == '+' || ch == '-' || ch == '*' || ch == '/' || ch == '%' || 
-                 ch == '<' || ch == '>' || ch == '!' || ch == '|' || ch == '&' || ch == ';')
+                 ch == '<' || ch == '>' || ch == '!' || ch == '|' || ch == '&' || ch == ';' ||
+                 ch == '^' || ch == ':')
                  return 1;
     return 0;
 }
@@ -101,6 +104,8 @@ string checkOp(char ch){
         case '<': next('=') == 1 ? a = "<=" : a = "<"; break;
         case '|': next('|') == 1 ? a = "||" : a = "|"; break;
         case '&': next('&') == 1 ? a = "&&" : a = "&"; break;
+        case ':': next('=') == 1 ? a = ":=" : a = "&"; break;
+        case '^': next(';') == 1 ? a = "^;" : a = "&"; break;
     }
     return a;
 }
@@ -113,6 +118,11 @@ string getString(string answer, char ch){
             answer += ch;
             ch = getChar();
     }
+    if (ch == '\n')
+    {
+        count_line ++;
+    }
+    
     if (isOpChar(ch) || ch == '#' || ch == ' ')
     {
         ungetchar();
@@ -123,11 +133,13 @@ string getString(string answer, char ch){
 void skipComment(){
     string temp;
     ungetchar();
+    count_line ++;
     getline(file, temp);
 }
 
 char skipSpace(char ch){
-    while (!file.eof() && (ch == ' ' || ch == '\n' || ch == '\r' )){
+    while (!file.eof() && (ch == ' ' || ch == '\n' || ch == '\r' || ch == '\t')){
+        if(ch == '\n') count_line ++;
         ch = getChar();
     }
     return ch;
@@ -152,7 +164,8 @@ string nextToken(){
     }
     else {
         answer = getString(answer, ch);
-        if (answer == " " || answer == "\n" || answer == "\r"){
+        if (answer == " " || answer == "\n" || answer == "\r" || answer == "\t"){
+            if(answer == "\n") count_line ++;
             nextToken();
         }
         return answer;
@@ -170,18 +183,20 @@ void dropToken(){
 }
 
 void syntax_error(string err){
-    cout << err << endl;
+    cout << count_line << ": " << err << endl;
     num_err ++;
 }
 
 void startgrammer(){
-    while(getToken() != "\0" && isWord(getToken())){
+    // cout << "tok : " << getToken() << endl;
+    while(! file.eof() && getToken() != "\0" && isWord(getToken())){
         word();
-        if(nextToken() != ":=")
+        // cout << "toks : " << getToken() << endl;
+        if(getToken() != ":=")
             syntax_error("expected :=");
         dropToken();
         anything();
-        if(nextToken() != "^;")
+        if(getToken() != "^;")
             syntax_error("expected ^;");
         dropToken();
     }
@@ -209,14 +224,38 @@ void startgrammer(){
 
 void anything(){
     anything1();
-    while(getToken() == "|"){
+    // cout << "tok anything : " << getToken() << endl;
+    while(getToken() == "|" && ! file.eof()){
+        cout << "tok1 : " << getToken() << endl;
         dropToken();
         anything1();           
     }
 }
 
 void anything1(){
-    anyword();
+    // cout << "tok anything1 : " << getToken() << endl;
+    if(file.eof()){
+        return;
+    }
+    else if(getToken() == "^;"){
+        return;
+    }
+    else if(isWord(getToken())){
+        word();
+        anything();
+    }
+    else if(isNumber(getToken()))
+    {
+        number();
+        anything();
+    }
+    else if(isSigns(getToken())) {
+        signs();
+        anything();  
+    }
+    else {
+        syntax_error("expected word or number or signs");
+    }
 }
 
 void anyword(){
@@ -239,7 +278,7 @@ void anyword(){
 }
 
 bool isSigns(string tok){
-    if(regex_match(tok, regex("[^a-zA-Z0-9]*"))) return true;
+    if(regex_match(tok, regex("[^a-zA-Z0-9]*")) and tok != "^;" and tok != ":=") return true;
     else return false;  
 }
 
