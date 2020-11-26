@@ -58,7 +58,7 @@ int main () {
         cout << "file opened successfully !\n";
     }
 
-    count_line = 0;
+    count_line = 1;
     token = nextToken();
     num_err = 0;
     startgrammer();
@@ -165,7 +165,6 @@ string nextToken(){
     else {
         answer = getString(answer, ch);
         if (answer == " " || answer == "\n" || answer == "\r" || answer == "\t"){
-            if(answer == "\n") count_line ++;
             nextToken();
         }
         return answer;
