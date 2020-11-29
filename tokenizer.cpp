@@ -6,6 +6,34 @@ using namespace std;
 char c;
 ifstream file;
 
+char getChar();
+void ungetchar();
+int isOpChar(char ch);
+int next(char expected);
+string checkOp(char ch);
+string getString(string answer, char ch);
+void skipComment();
+char skipSpace(char ch);
+string nextToken();
+
+
+int main () {
+    cout << "Enter name of file\n";
+    string name;
+    cin >> name;
+    file.open (name);
+    string line;
+    if(file.is_open()){
+        while(! file.eof() ){
+            line = nextToken();
+            cout << line << '\n';
+        }
+    }
+    
+
+  return 0;
+}
+
 char getChar(){
     if(file.is_open())
         if(file.get(c)){
@@ -102,21 +130,3 @@ string nextToken(){
     
 
 }
-
-int main () {
-    cout << "Enter name of file\n";
-    string name;
-    cin >> name;
-    file.open (name);
-    string line;
-    if(file.is_open()){
-        while(! file.eof() ){
-            line = nextToken();
-            cout << line << '\n';
-        }
-    }
-    
-
-  return 0;
-}
-
