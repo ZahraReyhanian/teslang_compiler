@@ -1,5 +1,9 @@
 {
     "files.associations": {
-        "iostream": "cpp"
+        "iostream": "cpp",
+        "string": "cpp",
+        "array": "cpp",
+        "*.tcc": "cpp",
+        "type_traits": "cpp"
     }
 }
