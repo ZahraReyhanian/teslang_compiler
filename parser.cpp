@@ -105,7 +105,7 @@ void equ_expr();
 void relational_expr();
 void add_expr();
 void mul_expr();
-void unary_expr()
+void unary_expr();
 void postfix_expr();
 void prim_expr();
 void unary_oprator();
@@ -387,33 +387,71 @@ void cond_expr(){
     or_expr();
 }
 
+    
 void or_expr(){
-
+    and_expr();
+    while (getToken() == "||")
+    {
+        dropToken();
+        and_expr();
+    }  
 }
 
 void and_expr(){
-
+    equ_expr();
+    while (getToken() == "&&")
+    {
+        dropToken();
+        equ_expr();
+    }
+    
 }
 
 void equ_expr(){
-
+    relational_expr();
+    while (getToken() == "==" || getToken() == "!=")
+    {
+        dropToken();
+        relational_expr();
+    }
+    
 }
 
 void relational_expr(){
-
+    add_expr();
+    while (getToken() == ">" || getToken() == "<" || getToken() == ">=" || getToken() == "<=")
+    {
+        dropToken();
+        add_expr();
+    }
 }
 
 void add_expr(){
-
+    mul_expr();
+    while (getToken() == "+" || getToken() == "-")
+    {
+        dropToken();
+        mul_expr();
+    }
+    
 }
 
 void mul_expr(){
-
+    unary_expr();
+    while (getToken() == "*" || getToken() == "/" || getToken() == "%")
+    {
+        dropToken();
+        unary_expr();
+    }
 }
 
 void unary_expr(){
     unary_oprator();
-    //todo
+    while (getToken() == "+" || getToken() == "-" || getToken() == "!")
+    {
+        unary_oprator();
+    }
+    postfix_expr();
 }
 
 void postfix_expr(){
