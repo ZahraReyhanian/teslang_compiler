@@ -13,8 +13,7 @@
             { body }
     defvar -> type iden
 
-    expr -> iden ( clist ) |
-            assign-expr
+    expr -> assign-expr
     assign-expr -> cond-expr |
                     unary-expr  = assign-expr
     cond-expr -> or-expr
@@ -43,6 +42,7 @@
     postfix-expr -> prim-expr  |
                     postfix-expr [expr]
     prim-expr -> iden |
+                iden ( clist ) |
                 num |
                 (expr)
     unary-oprator -> + |
@@ -95,6 +95,10 @@ void prog();
 void func();
 void body();
 void stmt();
+void semicol();
+void if_stmt();
+void while_stmt();
+void for_stmt();
 void defvar();
 void expr();
 void assign_expr();
@@ -141,7 +145,14 @@ int main () {
     count_line = 1;
     token = nextToken();
     num_err = 0;
-    startgrammer();
+    /*while (! isFileEnd())
+    {
+        cout << getToken() << '\n';
+        dropToken();
+    }*/
+    //type();
+    //iden();
+    prog();
     return 0;
 }
 
@@ -161,7 +172,7 @@ void ungetchar(){
 }
 
 int isOpChar(char ch){
-    if(ch == '[' || ch == ']' || ch == '(' || ch == ')' || ch == ',' ||
+    if(ch == '[' || ch == ']' || ch == '(' || ch == ')' || ch == ',' || ch == '{' || ch == '}' ||
                  ch == '=' || ch == '+' || ch == '-' || ch == '*' || ch == '/' || ch == '%' || 
                  ch == '<' || ch == '>' || ch == '!' || ch == '|' || ch == '&' || ch == ';' )
                  return 1;
@@ -195,6 +206,10 @@ string getString(string answer, char ch){
             answer += ch;
             ch = getChar();
     }
+    if (ch == '\n')
+    {
+        count_line ++;
+    }
     if (isOpChar(ch) || ch == '#' || ch == ' ')
     {
         ungetchar();
@@ -205,11 +220,13 @@ string getString(string answer, char ch){
 void skipComment(){
     string temp;
     ungetchar();
+    count_line++;
     getline(file, temp);
 }
 
 char skipSpace(char ch){
     while (!file.eof() && (ch == ' ' || ch == '\n' || ch == '\r'  || ch == '\t')){
+        if(ch == '\n') count_line ++;
         ch = getChar();
     }
     return ch;
@@ -256,7 +273,7 @@ bool isFileEnd(){
 }
 
 void syntax_error(string err){
-    cout << count_line << ": " << err << endl;
+    cout << count_line << ": " << err << "but get : "<< getToken() <<endl;
     num_err ++;
 }
 
@@ -280,8 +297,9 @@ bool isNum(string tok){
 }
 
 void prog(){
-    while (! isFileEnd() && getToken() != "\0")
+    while (true)
     {
+        if(isFileEnd()) break;
         func();
     }
     if(getToken() == "\0"){
@@ -315,6 +333,7 @@ void func(){
         if(getToken() == ")"){
             dropToken();
             if (getToken() == "{"){
+                dropToken();
                 body();
                 if(getToken() == "}"){
                     dropToken();
@@ -336,50 +355,186 @@ void body(){
 }
 
 void stmt(){
-
+    string tok = getToken();
+    if(tok == NUM || tok == LIST)
+    {
+        defvar();
+        semicol();
+    }
+    else if(tok == IF){
+        if_stmt();
+    }
+    else if(tok == WHILE)
+    {
+        while_stmt();
+    }
+    else if(tok == FOR)
+    {
+        for_stmt();
+    }
+    else if(tok == RETURN){
+        dropToken();
+        expr();
+        semicol();
+    }
+    else if(tok == "{")
+    {
+        dropToken();
+        body();
+        if(getToken() == "}"){
+            dropToken();
+            return;
+        }
+        else
+        {
+            syntax_error("expected }");
+        }
+        
+    }
+    else
+    {
+        expr();
+        semicol();
+    }
+    
 }
 
-void defvar(){
-    type();
-    iden();
-}
-//expr -> iden ( clist ) |
-  //          assign-expr
-void expr(){
-    if(isIdentifier(getToken())){
-        iden();
+void if_stmt(){
+    if (getToken() == IF)
+    {
+        dropToken();
         if(getToken() == "("){
             dropToken();
-            clist();
-            if(getToken() == ")"){
+            expr();
+            if (getToken() == ")")
+            {
                 dropToken();
+                stmt();
+                if(getToken() == ELSE)
+                {
+                    dropToken();
+                    stmt();
+                }
+                return;
             }
             else
             {
                 syntax_error("expected )");
             }
+            
+        }
+        else
+        {
+            syntax_error("expected (");
+        }
+        
+    }
+    
+}
+
+void while_stmt(){
+    if(getToken() == WHILE){
+        dropToken();
+        if(getToken() == "("){
+            dropToken();
+            expr();
+            if (getToken() == ")")
+            {
+                dropToken();
+                stmt();
+                return;
+            }
+            else
+            {
+                syntax_error("expected )");
+            }
+            
         }
         else
         {
             syntax_error("expected (");
         }
     }
-    else
-    {
-        assign_expr();
+}
+
+void for_stmt(){
+     if(getToken() == FOR)
+     {
+         dropToken();
+         if(getToken() == "("){
+            dropToken();
+            iden();
+            if(getToken() == IN){
+                 dropToken();
+                 expr();
+                 if(getToken() == ")"){
+                     dropToken();
+                     stmt();
+                 }
+                 else
+                 {
+                     syntax_error("expected )");
+                 }
+                 
+            }
+            else
+            {
+                syntax_error("expected in");
+            }
+         }
+         else
+         {
+             syntax_error("expected (");
+         }
+         
+     }
+}
+
+void semicol(){
+    if(getToken() == ";"){
+        dropToken();
     }
-    
+    else{
+        syntax_error("expected ;");
+        if(isOpChar(getToken()[0]))
+        {
+            dropToken();
+        }
+    }
+}
+
+void defvar(){
+    type();
+    if (isKey(getToken()))
+    {
+        syntax_error(getToken() + "is a key word");
+        dropToken();
+        return;
+    }
+    iden();
+}
+//expr -> assign-expr
+void expr(){
+    assign_expr();
 }
 
 //assign-expr -> cond-expr |
      //               unary-expr  = assign-expr
 void assign_expr(){
     unary_expr();
-    while (getToken() == "=")
+    if (getToken() == "=")
     {
-        dropToken();
+        while (getToken() == "=")
+        {
+            dropToken();
+            cond_expr();
+        }
+    }
+    else
+    {
         cond_expr();
     }
+    
     
 }
 
@@ -455,14 +610,15 @@ void unary_expr(){
 }
 
 void postfix_expr(){
+    //cout << "gggggggggggggg " << getToken();
     prim_expr();
+    //cout << "hhhhhhhhhhhhhhhhhh";
     while (getToken() == "[")
     {
         dropToken();
         expr();
         if(getToken() == "]"){
             dropToken();
-            continue();
         }
         else
         {
@@ -470,17 +626,35 @@ void postfix_expr(){
         }
         
     }
-    
+
 }
 
 void prim_expr(){
     if (isIdentifier(getToken()))
     {
+        //cout << getToken() << " 11111111111\n";
         iden();
+        //cout << getToken() << " 22222222222\n";
+        if(getToken() == "("){
+            dropToken();
+            clist();
+            //cout << getToken() << " kkkkkkkkkkkkkkkkkkk\n";
+            if (getToken() == ")")
+            {
+                dropToken();
+            }
+            else
+            {
+                syntax_error("expected )");
+            }
+        
+        }
+        
     }
     else if(isNum(getToken()))
     {
         num();
+        return;
     }
     else if(getToken() == "("){
         dropToken();
@@ -495,6 +669,11 @@ void prim_expr(){
         }
         
     }
+    else if(getToken() == ")" || getToken() == "]" || getToken() == ";")
+    {
+        return;
+    }
+    
     else
     {
         syntax_error("primary expression is not ok!");
@@ -508,6 +687,11 @@ void unary_oprator(){
 }
 
 void flist(){
+    if (getToken() == ")")
+    {
+        return;
+    }
+    
     type();
     iden();
     while (! isFileEnd() && getToken() == ",")
@@ -520,12 +704,19 @@ void flist(){
 }
 
 void clist(){
+    if (getToken() == ")")
+    {
+        return;
+    }
+    //cout << getToken() << " eeeeeeeeeeeeeeeeeeeeee\n";
     expr();
-    while(! isFileEnd() && getToken() == ",")
+    //cout << getToken() << " after\n";
+    while(! isFileEnd() && getToken() != ")" && getToken() == "," )
     {
         dropToken();
         expr();
     }
+    //cout << getToken() << " 3333333333333333\n";
 }
 
 void type(){
@@ -546,6 +737,7 @@ void type(){
 void num(){
     string tok = getToken();
     if(isNum(tok)){
+        //cout << getToken() << " nnnnnnnnnnnnnnnnnnnnnn\n";
          dropToken();
      }
      else {
@@ -556,12 +748,12 @@ void num(){
 void iden(){
     string tok = getToken();
     if(isIdentifier(tok)){
-        if(isKey(tok)){
-            syntax_error(tok + " is a reserved token!");
-        }
-        else{
+        //if(isKey(tok)){
+           // syntax_error(tok + " is a reserved token!");
+       // }
+        //else{
             dropToken();
-        }
+       // }
          
      }
      else {

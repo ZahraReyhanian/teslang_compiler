@@ -1,4 +1,11 @@
-S  :=  A | 
-	A S ^;
-S := ~ | a ^;
-A := b 
+num main1()
+{
+	list A;
+A = list(4);
+A[0] = numread();
+A[1] = numread();
+A[2] = numread();
+A[3] = numread();
+numprint(vecsum(A)];
+return 0;
+}
