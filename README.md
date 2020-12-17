@@ -1,4 +1,5 @@
 # teslang_compiler
+```
 a compiler for teslang with this bnf :
 prog ::= func |
 func prog
@@ -46,3 +47,4 @@ type ::= num |
 list
 num ::= [0-9]+
 iden ::= [a-zA-Z_][a-zA-Z_0-9]*
+```
