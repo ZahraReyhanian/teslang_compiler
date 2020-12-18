@@ -72,8 +72,8 @@ ifstream file;
 string token;
 int num_err;
 int count_line;
-string IF = "if", ELSE = "else", IN = "in", WHILE = "while", FOR = "for", RETURN = "return", LIST = "list", NUM = "num",
-NUMREAD = "numread", NUMPRINT = "numprint", LISTLEN = "listlen", EXIT = "exit";
+string IF = "if", ELSE = "else", IN = "in", WHILE = "while", FOR = "for", RETURN = "return", LIST = "list", NUM = "num", NIL = "nil",
+NUMREAD = "numread", NUMPRINT = "numprint", LISTLEN = "listlen", EXIT = "exit", MAKELIST = "makelist";
 
 char getChar();
 void ungetchar();
@@ -140,6 +140,58 @@ int main () {
     {
         cout << "file opened successfully !\n";
     }
+
+    table number;
+    number.var = "n";
+    number.type = NUM;
+    number.isFunc = false;
+    number.numberOfparam = 0;
+
+    table list;
+    list.var = "v";
+    list.type = LIST;
+    list.isFunc = false;
+    list.numberOfparam = 0;
+
+    table numread;
+    numread.var = NUMREAD;
+    numread.type = NUM;
+    numread.isFunc = true;
+    numread.numberOfparam = 0;
+
+    table numprint;
+    numprint.var = NUMPRINT;
+    numprint.type = NIL;
+    numprint.isFunc = true;
+    numprint.numberOfparam = 1;
+    numprint.list.push_back(number);
+
+    table makelist;
+    makelist.var = MAKELIST;
+    makelist.type = LIST;
+    makelist.isFunc = true;
+    makelist.numberOfparam = 1;
+    makelist.list.push_back(number);
+
+    table listlen;
+    listlen.var = LISTLEN;
+    listlen.type = NUM;
+    listlen.isFunc = true;
+    listlen.numberOfparam = 1;
+    listlen.list.push_back(list);
+
+    table exit;
+    exit.var = EXIT;
+    exit.type = NIL;
+    exit.isFunc = true;
+    exit.numberOfparam = 1;
+    exit.list.push_back(number);
+
+    symbolTable.push_back(numread);
+    symbolTable.push_back(numprint);
+    symbolTable.push_back(makelist);
+    symbolTable.push_back(listlen);
+    symbolTable.push_back(exit);
 
     count_line = 1;
     token = nextToken();
@@ -278,7 +330,7 @@ void syntax_error(string err){
 
 bool isKey(string tok){
     if (tok == IF || tok == ELSE || tok == IN || tok == WHILE || tok == FOR || tok == RETURN || tok == LIST || tok == NUM ||
-    tok == NUMREAD || tok == NUMPRINT || tok == LISTLEN || tok == EXIT)
+    tok == NUMREAD || tok == NUMPRINT || tok == LISTLEN || tok == EXIT || tok == MAKELIST)
         return true;
     else return false;   
     
