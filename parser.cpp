@@ -123,7 +123,6 @@ struct table
 {
     string var;
     string type;
-    int value;
     bool isFunc;
     int numberOfparam;
     vector<table> list;
