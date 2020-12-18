@@ -1,11 +1,11 @@
-num main1()
+num func()
 {
 	list A;
 A = list(4);
-A[0] = numread();
-A[1] = numread();
-A[2] = numread();
+numprint[0] = numprint();
+numl[1] = numread();
+numl[2] = numread();
 A[3] = numread();
-numprint(vecsum(A)];
+numprint(vecsum(A));
 return 0;
 }

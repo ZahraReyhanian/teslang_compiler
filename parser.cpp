@@ -1,6 +1,6 @@
 /*
     prog -> func | func prog
-    func -> type iden ( flist ) { body } |
+    func -> func-type iden ( flist ) { body } |
     body -> stmt |
             stmt body
     stmt -> expr ; |
@@ -55,6 +55,9 @@
     clist -> |
             expr |
             expr , clist
+    func-type -> num |
+                list |
+                nil
     type -> num |
             list
     num -> [0-9]+
@@ -115,7 +118,8 @@ void prim_expr();
 void unary_oprator();
 void flist();
 void clist();
-void type();
+string type();
+string func_type();
 void num();
 void iden();
 
@@ -337,8 +341,7 @@ bool isKey(string tok){
 }
 
 bool isIdentifier(string tok){
-    if(!isKey(tok))
-        if(regex_match(tok, regex("[a-zA-Z_][a-zA-Z_0-9]*"))) return true;
+    if(regex_match(tok, regex("[a-zA-Z_][a-zA-Z_0-9]*"))) return true;
     else return false;
 }
 
@@ -376,7 +379,11 @@ void prog(){
 }
 
 void func(){
-    type();
+    string type = func_type();
+    if (isKey(getToken()))
+    {
+        syntax_error(getToken() + " is a key word !");
+    }
     iden();
     if(getToken() == "("){
         dropToken();
@@ -514,6 +521,11 @@ void for_stmt(){
          dropToken();
          if(getToken() == "("){
             dropToken();
+            if (isKey(getToken()))
+            {
+                syntax_error(getToken() + " is a key word !");
+            }
+            
             iden();
             if(getToken() == IN){
                  dropToken();
@@ -559,8 +571,6 @@ void defvar(){
     if (isKey(getToken()))
     {
         syntax_error(getToken() + "is a key word");
-        dropToken();
-        return;
     }
     iden();
 }
@@ -661,9 +671,7 @@ void unary_expr(){
 }
 
 void postfix_expr(){
-    //cout << "gggggggggggggg " << getToken();
     prim_expr();
-    //cout << "hhhhhhhhhhhhhhhhhh";
     while (getToken() == "[")
     {
         dropToken();
@@ -683,13 +691,10 @@ void postfix_expr(){
 void prim_expr(){
     if (isIdentifier(getToken()))
     {
-        //cout << getToken() << " 11111111111\n";
         iden();
-        //cout << getToken() << " 22222222222\n";
         if(getToken() == "("){
             dropToken();
             clist();
-            //cout << getToken() << " kkkkkkkkkkkkkkkkkkk\n";
             if (getToken() == ")")
             {
                 dropToken();
@@ -744,11 +749,20 @@ void flist(){
     }
     
     type();
+    if (isKey(getToken()))
+    {
+        syntax_error(getToken() + " is s key word");
+    }
+    
     iden();
     while (! isFileEnd() && getToken() == ",")
     {
         dropToken();
         type();
+        if (isKey(getToken()))
+        {
+            syntax_error(getToken() + " is s key word");
+        }
         iden();
     }
     
@@ -759,28 +773,52 @@ void clist(){
     {
         return;
     }
-    //cout << getToken() << " eeeeeeeeeeeeeeeeeeeeee\n";
     expr();
-    //cout << getToken() << " after\n";
     while(! isFileEnd() && getToken() != ")" && getToken() == "," )
     {
         dropToken();
         expr();
     }
-    //cout << getToken() << " 3333333333333333\n";
 }
 
-void type(){
-    if(getToken() == NUM) {
+string func_type(){
+    string tok = getToken();
+    if(tok == NUM) {
         dropToken();
+        return tok;
     }
-    else if(getToken() == LIST)
+    else if(tok == LIST)
     {
         dropToken();
+        return tok;
+    }
+    else if(tok == NIL)
+    {
+        dropToken();
+        return tok;
+    }
+    else
+    {
+        syntax_error("expected num or list or nil");
+        return NIL;
+    }
+}
+
+string type(){
+    string tok = getToken();
+    if(tok == NUM) {
+        dropToken();
+        return tok;
+    }
+    else if(tok == LIST)
+    {
+        dropToken();
+        return tok;
     }
     else
     {
         syntax_error("expected num or list");
+        return NIL; // means that type of variable is not defined !
     }
     
 }
@@ -799,15 +837,10 @@ void num(){
 void iden(){
     string tok = getToken();
     if(isIdentifier(tok)){
-        //if(isKey(tok)){
-           // syntax_error(tok + " is a reserved token!");
-       // }
-        //else{
-            dropToken();
-       // }
-         
+        dropToken();         
      }
      else {
          syntax_error("Invalid identifier!");
+         dropToken();
      }
 }
