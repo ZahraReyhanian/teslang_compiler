@@ -1,8 +1,8 @@
-num func()
+num func(num n, num m, num a)
 {
 	list A;
-A = list(4);
-numprint[0] = numprint();
+A && b;
+numprint[0] = numprint(n,q);
 numl[1] = numread();
 numl[2] = numread();
 A[3] = numread();

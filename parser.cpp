@@ -76,7 +76,18 @@ string token;
 int num_err;
 int count_line;
 string IF = "if", ELSE = "else", IN = "in", WHILE = "while", FOR = "for", RETURN = "return", LIST = "list", NUM = "num", NIL = "nil",
-NUMREAD = "numread", NUMPRINT = "numprint", LISTLEN = "listlen", EXIT = "exit", MAKELIST = "makelist";
+NUMREAD = "numread", NUMPRINT = "numprint", LISTLEN = "listlen", EXIT = "exit", MAKELIST = "makelist";//main
+
+struct table
+{
+    string var;
+    string type;
+    bool isFunc;
+    int numberOfparam;
+    vector<table> list;
+
+};
+vector<table> symbolTable;
 
 char getChar();
 void ungetchar();
@@ -94,6 +105,7 @@ bool isFileEnd();
 bool isKey(string tok);
 bool isIdentifier(string tok);
 bool isNum(string tok);
+int isInSymbolTable(string name, bool isFunc);
 void prog();
 void func();
 void body();
@@ -116,23 +128,12 @@ void unary_expr();
 void postfix_expr();
 void prim_expr();
 void unary_oprator();
-void flist();
-void clist();
+int flist(vector<table> &list);
+void clist(string var);
 string type();
 string func_type();
 void num();
 void iden();
-
-struct table
-{
-    string var;
-    string type;
-    bool isFunc;
-    int numberOfparam;
-    vector<table> list;
-
-};
-vector<table> symbolTable;
 
 int main () {
     file.open ("grammer.txt");
@@ -200,14 +201,14 @@ int main () {
     count_line = 1;
     token = nextToken();
     num_err = 0;
-    /*while (! isFileEnd())
-    {
-        cout << getToken() << '\n';
-        dropToken();
-    }*/
-    //type();
-    //iden();
+
     prog();
+    while (symbolTable.size() != 0)
+    {
+        symbolTable.erase(symbolTable.end());
+    }
+    file.close();
+
     return 0;
 }
 
@@ -328,7 +329,7 @@ bool isFileEnd(){
 }
 
 void syntax_error(string err){
-    cout << count_line << ": " << err << "but get : "<< getToken() <<endl;
+    cout << count_line << ": " << err << endl;
     num_err ++;
 }
 
@@ -348,6 +349,18 @@ bool isIdentifier(string tok){
 bool isNum(string tok){
     if(regex_match(tok, regex("[0-9]+"))) return true;
     else return false;
+}
+
+int isInSymbolTable(string name, bool isFunc ){
+    for (int i = symbolTable.size() - 1; i >= 0; i--)
+    {
+        if (symbolTable[i].var == name && symbolTable[i].isFunc == isFunc)
+        {
+            return i;
+        }
+        
+    }
+    return -1;
 }
 
 void prog(){
@@ -380,26 +393,55 @@ void prog(){
 
 void func(){
     string type = func_type();
-    if (isKey(getToken()))
+    table func;
+    func.isFunc = true;
+    func.type = type;
+    bool err = false;
+    if (isIdentifier( getToken() ))
     {
-        syntax_error(getToken() + " is a key word !");
+        if (isKey(getToken()))
+        {
+            syntax_error(getToken() + " is a key word !");
+            err = true;
+        }
+        if (isInSymbolTable(getToken(), true) != -1)
+        {
+            syntax_error(getToken()+ " function defined before!");
+            err = true;
+        }
+        
     }
+    func.var = getToken();
     iden();
     if(getToken() == "("){
         dropToken();
-        flist();
+        int n = flist(func.list);
+        func.numberOfparam = n;
+        if(!err){
+            symbolTable.push_back(func);
+        }
         if(getToken() == ")"){
             dropToken();
+            int size = symbolTable.size();
+            for (int i = 0; i < n; i++)
+            {
+                symbolTable.push_back(func.list[i]);
+            }
+            
             if (getToken() == "{"){
                 dropToken();
                 body();
                 if(getToken() == "}"){
                     dropToken();
-                    return;
                 }
                 else syntax_error("expected }");
             }
             else syntax_error("expected {");
+            while (size != symbolTable.size())
+            {
+                symbolTable.erase(symbolTable.end());
+            }
+        
         }
         else syntax_error("expected )");
     }
@@ -567,14 +609,29 @@ void semicol(){
 }
 
 void defvar(){
-    type();
-    if (isKey(getToken()))
+    table variable;
+    variable.type = type();
+    variable.isFunc = false;
+    variable.numberOfparam = 0;
+    bool err = false;
+    string tok = getToken();
+    if (isKey(tok))
     {
-        syntax_error(getToken() + "is a key word");
+        syntax_error(tok + "is a key word");
+        err = true;
+    }
+    if(isInSymbolTable(tok, false) != -1)
+    {
+        syntax_error(tok + " is defined before");
+        err = true;
+    }
+    if(!err && isIdentifier(tok)){
+        variable.var = tok;
+        symbolTable.push_back(variable);
     }
     iden();
 }
-//expr -> assign-expr
+
 void expr(){
     assign_expr();
 }
@@ -582,7 +639,7 @@ void expr(){
 //assign-expr -> cond-expr |
      //               unary-expr  = assign-expr
 void assign_expr(){
-    unary_expr();
+    cond_expr();
     if (getToken() == "=")
     {
         while (getToken() == "=")
@@ -590,12 +647,7 @@ void assign_expr(){
             dropToken();
             cond_expr();
         }
-    }
-    else
-    {
-        cond_expr();
-    }
-    
+    }  
     
 }
 
@@ -691,10 +743,11 @@ void postfix_expr(){
 void prim_expr(){
     if (isIdentifier(getToken()))
     {
+        string var = getToken();
         iden();
         if(getToken() == "("){
             dropToken();
-            clist();
+            clist(var);
             if (getToken() == ")")
             {
                 dropToken();
@@ -705,6 +758,7 @@ void prim_expr(){
             }
         
         }
+        return;
         
     }
     else if(isNum(getToken()))
@@ -742,43 +796,80 @@ void unary_oprator(){
     if(getToken() == "+" || getToken() == "-" || getToken() == "!") dropToken();        
 }
 
-void flist(){
+int flist(vector<table> &list){
     if (getToken() == ")")
     {
-        return;
+        return 0;
     }
-    
-    type();
+    table variable;
+    int n = 1;
+    variable.type = type();
     if (isKey(getToken()))
     {
         syntax_error(getToken() + " is s key word");
     }
-    
+    variable.isFunc = false;
+    variable.numberOfparam = 0;
+    variable.var = getToken();
     iden();
+    list.push_back(variable);
     while (! isFileEnd() && getToken() == ",")
     {
         dropToken();
-        type();
+        variable.type = type();
         if (isKey(getToken()))
         {
             syntax_error(getToken() + " is s key word");
         }
+        variable.isFunc = false;
+        variable.numberOfparam = 0;
+        variable.var = getToken();
         iden();
+        list.push_back(variable);
+        n ++;
     }
+    return n;
     
 }
-
-void clist(){
+//todo check use a defined varible
+void clist(string var){
+    bool err = false;
+    int i = isInSymbolTable(var, true);
+    if (i == -1)
+    {
+        syntax_error(var + " function is not defined !");
+        err = true;
+    }
+    
     if (getToken() == ")")
     {
+        if(!err)
+        {
+            //check if number of parameters is 0 or not. if not 0 should see an error
+            if (symbolTable[i].numberOfparam != 0)
+            {
+                syntax_error("illegal number of parameter !");
+            }
+            
+        }
         return;
     }
-    expr();
+    int n = 1;//todo
+    expr();// should get the type of expression and compare with parameter of var and when they dismathch should call syntax error(actually this is an semantic error)
     while(! isFileEnd() && getToken() != ")" && getToken() == "," )
     {
         dropToken();
         expr();
+        n ++;
     }
+    if(i != -1){
+       if (n != symbolTable[i].numberOfparam)
+        {
+            syntax_error("illegal number of parameter !");
+        } 
+    }
+    
+    
 }
 
 string func_type(){
