@@ -1,11 +1,25 @@
-num func(num n, num m, num a)
+num find(list A, num x)
+{
+	num i;
+	num n;
+	i = 0;
+	for (n in A){
+		if (n == x) 
+			return i;
+		i = A +1;
+	}
+	return -1;
+}
+
+num main()
 {
 	list A;
-A && b;
-numprint[0] = numprint(n,q);
-numl[1] = numread();
-numl[2] = numread();
-A[3] = numread();
-numprint(vecsum(A));
-return 0;
+	num a;
+	A = makelist(3);
+	A = 5;
+	A[2] = A;
+	A[1] = 8;
+	A = find(A, 5);
+	numprint(find(a, 5));
+	return 0;
 }

@@ -674,7 +674,7 @@ string or_expr(){
             syntax_error("illegal or expression !");
         } 
     }
-    return err ? NIL : NUM; 
+    return err ? NIL : type; 
 }
 
 string and_expr(){
@@ -690,7 +690,7 @@ string and_expr(){
             syntax_error("illegal and expression !");
         } 
     }
-    return err ? NIL : NUM;
+    return err ? NIL : type;
 }
 
 string equ_expr(){
@@ -706,7 +706,7 @@ string equ_expr(){
             syntax_error("illegal equality expression !");
         } 
     }
-    return err ? NIL : NUM;
+    return err ? NIL : type;
 }
 
 string relational_expr(){
@@ -722,7 +722,7 @@ string relational_expr(){
             syntax_error("illegal relational expression !");
         } 
     }
-    return err ? NIL : NUM;
+    return err ? NIL : type;
 }
 
 string add_expr(){
@@ -787,7 +787,7 @@ string postfix_expr(){
         }
         
     }
-    return isList ?  LIST : type; 
+    return isList ?  NUM : type; 
 
 }
 
