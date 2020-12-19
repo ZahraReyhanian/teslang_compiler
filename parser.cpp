@@ -115,25 +115,26 @@ void if_stmt();
 void while_stmt();
 void for_stmt();
 void defvar();
-void expr();
-void assign_expr();
-void cond_expr();
-void or_expr();
-void and_expr();
-void equ_expr();
-void relational_expr();
-void add_expr();
-void mul_expr();
-void unary_expr();
-void postfix_expr();
-void prim_expr();
+string expr();
+string assign_expr();
+string cond_expr();
+string or_expr();
+string and_expr();
+string equ_expr();
+string relational_expr();
+string add_expr();
+string mul_expr();
+string unary_expr();
+string postfix_expr();
+string prim_expr();
 void unary_oprator();
 int flist(vector<table> &list);
-void clist(string var);
+void clist(string var, int i);
 string type();
 string func_type();
 void num();
 void iden();
+bool check_same_type(string type, int i, int j);
 
 int main () {
     file.open ("grammer.txt");
@@ -256,7 +257,6 @@ string checkOp(char ch){
 
 
 string getString(string answer, char ch){
-    //todo check string is valid or not
     while (! file.eof() && ch != '\0' && ! isOpChar(ch) && ch != ' ' && ch != '\n' && ch != '#' )
     {
             answer += ch;
@@ -632,102 +632,152 @@ void defvar(){
     iden();
 }
 
-void expr(){
-    assign_expr();
+string expr(){
+    return assign_expr();
 }
 
 //assign-expr -> cond-expr |
      //               unary-expr  = assign-expr
-void assign_expr(){
-    cond_expr();
+string assign_expr(){
+    string type = cond_expr();
+    string type2;
+    bool err = false;
     if (getToken() == "=")
     {
         while (getToken() == "=")
         {
             dropToken();
-            cond_expr();
+            type2 = cond_expr();
+            if(type != type2){
+                err = true;
+                syntax_error("illegal assignment!");
+            }
         }
     }  
-    
+    return err ? NIL : type; 
 }
 
-void cond_expr(){
-    or_expr();
+string cond_expr(){
+    return or_expr();
 }
-
     
-void or_expr(){
-    and_expr();
+string or_expr(){
+    string type = and_expr();
+    string type2;
+    bool err = false;
     while (getToken() == "||")
     {
         dropToken();
-        and_expr();
-    }  
+        type2 = and_expr();
+        if(type != type2){
+            err = true;
+            syntax_error("illegal or expression !");
+        } 
+    }
+    return err ? NIL : NUM; 
 }
 
-void and_expr(){
-    equ_expr();
+string and_expr(){
+    string type = equ_expr();
+    string type2;
+    bool err = false;
     while (getToken() == "&&")
     {
         dropToken();
-        equ_expr();
+        type2 = equ_expr();
+        if(type != type2){
+            err = true;
+            syntax_error("illegal and expression !");
+        } 
     }
-    
+    return err ? NIL : NUM;
 }
 
-void equ_expr(){
-    relational_expr();
+string equ_expr(){
+    string type = relational_expr();
+    string type2;
+    bool err = false;
     while (getToken() == "==" || getToken() == "!=")
     {
         dropToken();
-        relational_expr();
+        type2 = relational_expr();
+        if(type != type2){
+            err = true;
+            syntax_error("illegal equality expression !");
+        } 
     }
-    
+    return err ? NIL : NUM;
 }
 
-void relational_expr(){
-    add_expr();
+string relational_expr(){
+    string type = add_expr();
+    string type2;
+    bool err = false;
     while (getToken() == ">" || getToken() == "<" || getToken() == ">=" || getToken() == "<=")
     {
         dropToken();
-        add_expr();
+        type2 = add_expr();
+        if(type != type2){
+            err = true;
+            syntax_error("illegal relational expression !");
+        } 
     }
+    return err ? NIL : NUM;
 }
 
-void add_expr(){
-    mul_expr();
+string add_expr(){
+    string type = mul_expr();
+    bool in = false;
     while (getToken() == "+" || getToken() == "-")
     {
+        if(type != NUM) syntax_error("incompatible operands!");
         dropToken();
-        mul_expr();
+        type = mul_expr();
+        in = true;
     }
-    
+    if(type != NUM && in) syntax_error("incompatible operands!");
+    return type;
 }
 
-void mul_expr(){
-    unary_expr();
+string mul_expr(){
+    string type = unary_expr();
+    bool in = false;
     while (getToken() == "*" || getToken() == "/" || getToken() == "%")
     {
+        if(type != NUM) syntax_error("incompatible operands!");
         dropToken();
-        unary_expr();
+        type = unary_expr();
+        in = true;
     }
+    if(type != NUM && in) syntax_error("incompatible operands!");
+    return type;
 }
 
-void unary_expr(){
+string unary_expr(){
     unary_oprator();
     while (getToken() == "+" || getToken() == "-" || getToken() == "!")
     {
         unary_oprator();
     }
-    postfix_expr();
+    return postfix_expr();
 }
 
-void postfix_expr(){
-    prim_expr();
+string postfix_expr(){
+    string type = prim_expr();
+    int isList = false;
+    if(getToken() == "[")
+        if(type != LIST)
+            syntax_error("The identifier should be in type list");
     while (getToken() == "[")
     {
+        isList = true;
         dropToken();
-        expr();
+        type = expr();
+        
+        //expr should be num
+        if(type != NUM)
+            syntax_error("index of list should be in type num");
+
         if(getToken() == "]"){
             dropToken();
         }
@@ -737,17 +787,21 @@ void postfix_expr(){
         }
         
     }
+    return isList ?  LIST : type; 
 
 }
 
-void prim_expr(){
+string prim_expr(){
     if (isIdentifier(getToken()))
     {
         string var = getToken();
+        int i ;
         iden();
         if(getToken() == "("){
+            i = isInSymbolTable(var, true);
+            if(i == -1) syntax_error(var + " is not defined!");
             dropToken();
-            clist(var);
+            clist(var, i);
             if (getToken() == ")")
             {
                 dropToken();
@@ -758,17 +812,21 @@ void prim_expr(){
             }
         
         }
-        return;
-        
+        else{
+            i = isInSymbolTable(var, false);
+            if(i == -1) syntax_error(var + " is not defined!");
+        }
+        if(i == -1) return NIL;
+        else return symbolTable[i].type;
     }
     else if(isNum(getToken()))
     {
         num();
-        return;
+        return NUM;
     }
     else if(getToken() == "("){
         dropToken();
-        expr();
+        string type = expr();
         if (getToken() == ")")
         {
             dropToken();
@@ -777,16 +835,18 @@ void prim_expr(){
         {
             syntax_error("expected )");
         }
-        
+        return type;
     }
     else if(getToken() == ")" || getToken() == "]" || getToken() == ";")
     {
-        return;
+        //todo something to check
+        return NIL;
     }
     
     else
     {
         syntax_error("primary expression is not ok!");
+        return NIL;
     }
     
     
@@ -832,9 +892,8 @@ int flist(vector<table> &list){
     
 }
 //todo check use a defined varible
-void clist(string var){
+void clist(string var, int i){
     bool err = false;
-    int i = isInSymbolTable(var, true);
     if (i == -1)
     {
         syntax_error(var + " function is not defined !");
@@ -855,11 +914,18 @@ void clist(string var){
         return;
     }
     int n = 1;//todo
-    expr();// should get the type of expression and compare with parameter of var and when they dismathch should call syntax error(actually this is an semantic error)
+    // should get the type of expression and compare with parameter of var and when they dismathch should call syntax error(actually this is an semantic error)
+    string t = expr();
+    int j = 0;
+    bool same = check_same_type(t, i, j);// t is type, i is the index in symbolTable and j is index of list in the function in symbolTable
+    if(!same) syntax_error("illegal parameter!");
     while(! isFileEnd() && getToken() != ")" && getToken() == "," )
     {
         dropToken();
-        expr();
+        t = expr();
+        j++;
+        same = check_same_type(t, i, j);
+        if(!same) syntax_error("illegal parameter!");
         n ++;
     }
     if(i != -1){
@@ -917,7 +983,6 @@ string type(){
 void num(){
     string tok = getToken();
     if(isNum(tok)){
-        //cout << getToken() << " nnnnnnnnnnnnnnnnnnnnnn\n";
          dropToken();
      }
      else {
@@ -934,4 +999,16 @@ void iden(){
          syntax_error("Invalid identifier!");
          dropToken();
      }
+}
+
+bool check_same_type(string type, int i, int j){
+    string t = NIL;
+    if(i != -1)
+    {
+        if(j >= 0 && j < symbolTable[i].list.size())
+            t = symbolTable[i].list[j].type;
+    }
+    if (t == type) return true;
+    else return false;
+    
 }
