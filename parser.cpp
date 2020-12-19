@@ -77,6 +77,8 @@ int num_err;
 int count_line;
 string IF = "if", ELSE = "else", IN = "in", WHILE = "while", FOR = "for", RETURN = "return", LIST = "list", NUM = "num", NIL = "nil",
 NUMREAD = "numread", NUMPRINT = "numprint", LISTLEN = "listlen", EXIT = "exit", MAKELIST = "makelist";//main
+bool ret;
+string return_type;
 
 struct table
 {
@@ -202,6 +204,7 @@ int main () {
     count_line = 1;
     token = nextToken();
     num_err = 0;
+    ret = false;
 
     prog();
     while (symbolTable.size() != 0)
@@ -431,6 +434,12 @@ void func(){
             if (getToken() == "{"){
                 dropToken();
                 body();
+                if(type != NIL && !ret) syntax_error("this function should have a return statement!");
+                if(type == NIL && ret) syntax_error("this function should not have a return statement!");
+                if(type != NIL && ret){
+                    if(type != return_type) syntax_error("return type mismatch!");
+                }
+                ret = false;
                 if(getToken() == "}"){
                     dropToken();
                 }
@@ -474,7 +483,9 @@ void stmt(){
     }
     else if(tok == RETURN){
         dropToken();
-        expr();
+        string type = expr();
+        ret = true;
+        return_type = type;
         semicol();
     }
     else if(tok == "{")
@@ -571,7 +582,8 @@ void for_stmt(){
             iden();
             if(getToken() == IN){
                  dropToken();
-                 expr();
+                 string type = expr();
+                 if(type != LIST) syntax_error("invalid type! it should be list !");
                  if(getToken() == ")"){
                      dropToken();
                      stmt();
