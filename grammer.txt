@@ -4,11 +4,12 @@ num find(list A, num x)
 	num n;
 	i = 0;
 	for (n in A){
-		if (n == x) 
+		num v;
+		if (n == p) 
 			return i;
 		i = A +1;
 	}
-	return -1;
+	return v;
 }
 
 num main()
@@ -20,6 +21,6 @@ num main()
 	A[2] = A;
 	A[1] = 8;
 	A = find(A, 5);
-	numprint(find(a, 5));
+	numprint(find(i, 5));
 	return A;
 }

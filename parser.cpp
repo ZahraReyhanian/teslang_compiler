@@ -465,6 +465,7 @@ void body(){
 
 void stmt(){
     string tok = getToken();
+    int size = symbolTable.size();
     if(tok == NUM || tok == LIST)
     {
         defvar();
@@ -472,14 +473,26 @@ void stmt(){
     }
     else if(tok == IF){
         if_stmt();
+        while (size != symbolTable.size())
+        {
+            symbolTable.erase(symbolTable.end());
+        }
     }
     else if(tok == WHILE)
     {
         while_stmt();
+        while (size != symbolTable.size())
+        {
+            symbolTable.erase(symbolTable.end());
+        }
     }
     else if(tok == FOR)
     {
         for_stmt();
+        while (size != symbolTable.size())
+        {
+            symbolTable.erase(symbolTable.end());
+        }
     }
     else if(tok == RETURN){
         dropToken();
@@ -494,7 +507,6 @@ void stmt(){
         body();
         if(getToken() == "}"){
             dropToken();
-            return;
         }
         else
         {
