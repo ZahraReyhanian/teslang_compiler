@@ -260,16 +260,12 @@ string checkOp(char ch){
 
 
 string getString(string answer, char ch){
-    while (! file.eof() && ch != '\0' && ! isOpChar(ch) && ch != ' ' && ch != '\n' && ch != '#' )
+    while (! file.eof() && ch != '\0' && ! isOpChar(ch) && ch != ' ' && ch != '\n' && ch != '#' && ch != '\r' && ch != '\t')
     {
             answer += ch;
             ch = getChar();
     }
-    if (ch == '\n')
-    {
-        count_line ++;
-    }
-    if (isOpChar(ch) || ch == '#' || ch == ' ')
+    if (isOpChar(ch) || ch == '#' || ch == ' ' || ch == '\n')
     {
         ungetchar();
     }
@@ -310,8 +306,8 @@ string nextToken(){
     }
     else {
         answer = getString(answer, ch);
-        if (answer == " " || answer == "\n" || answer == "\r" || answer == "\t"){
-            nextToken();
+        if (answer == " " || answer == "\n" || answer == "\r" || answer == "\t" || answer == ""){
+            answer = nextToken();
         }
         return answer;
     }
@@ -433,12 +429,10 @@ void func(){
             
             if (getToken() == "{"){
                 dropToken();
+                return_type = type;
                 body();
                 if(type != NIL && !ret) syntax_error("this function should have a return statement!");
-                if(type == NIL && ret) syntax_error("this function should not have a return statement!");
-                if(type != NIL && ret){
-                    if(type != return_type) syntax_error("return type mismatch!");
-                }
+                
                 ret = false;
                 if(getToken() == "}"){
                     dropToken();
@@ -498,7 +492,10 @@ void stmt(){
         dropToken();
         string type = expr();
         ret = true;
-        return_type = type;
+        if(return_type == NIL) syntax_error("this function should not have a return statement!");
+        if(return_type != NIL){
+            if(type != return_type) syntax_error("return type mismatch!");
+        }
         semicol();
     }
     else if(tok == "{")
@@ -625,10 +622,6 @@ void semicol(){
     }
     else{
         syntax_error("expected ;");
-        if(isOpChar(getToken()[0]))
-        {
-            dropToken();
-        }
     }
 }
 
@@ -861,7 +854,7 @@ string prim_expr(){
         }
         return type;
     }
-    else if(getToken() == ")" || getToken() == "]" || getToken() == ";")
+    else if(getToken() == ")" || getToken() == "]" || getToken() == ";" || getToken() == "}")
     {
         //todo something to check
         return NIL;
@@ -870,6 +863,7 @@ string prim_expr(){
     else
     {
         syntax_error("primary expression is not ok!");
+        dropToken();
         return NIL;
     }
     
@@ -915,7 +909,7 @@ int flist(vector<table> &list){
     return n;
     
 }
-//todo check use a defined varible
+
 void clist(string var, int i){
     bool err = false;
     if (i == -1)
@@ -937,7 +931,7 @@ void clist(string var, int i){
         }
         return;
     }
-    int n = 1;//todo
+    int n = 1;
     // should get the type of expression and compare with parameter of var and when they dismathch should call syntax error(actually this is an semantic error)
     string t = expr();
     int j = 0;
