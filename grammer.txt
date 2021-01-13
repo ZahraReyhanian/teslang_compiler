@@ -4,24 +4,22 @@ num find(list A, num x)
 	num n;
 	i = 0;
 	for (n in A){
-		num v;
-		if (n == p) #gyysdvah
+		if (n == x)
 			return i;
 		i = A +1;
 	}
-	return v;
+	return -1;
 }
 
-nil main()
+num main()
 {
 	list A;
 	num a;
-	A = makelist(3 #heyyyyyy
+	A = list(3);
 	A = 5;
 	A[2] = A;
 	A[1] = 8;
 	A = find(A, 5);
-	numprint(find(i, 5));
-	a = a && 2;
-	return A
+	numprint(find(a, 5));
+	return 0;
 }

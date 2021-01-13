@@ -79,18 +79,33 @@ string IF = "if", ELSE = "else", IN = "in", WHILE = "while", FOR = "for", RETURN
 NUMREAD = "numread", NUMPRINT = "numprint", LISTLEN = "listlen", EXIT = "exit", MAKELIST = "makelist";//main
 bool ret;
 string return_type;
+int label_number = -1;
+int reg_number = -1;
 
 struct table
 {
     string var;
+    vector<int> value;
     string type;
     bool isFunc;
     int numberOfparam;
+    int reg = -1;
     vector<table> list;
 
 };
 vector<table> symbolTable;
 
+struct exprVal
+{
+    string tok;
+    string type;
+    vector<int> value;
+    int reg = -1;
+    int index = 0;
+};
+
+string label();
+string reg();
 char getChar();
 void ungetchar();
 int isOpChar(char ch);
@@ -216,6 +231,15 @@ int main () {
     return 0;
 }
 
+string label(){
+    string l = "label"; 
+    return l.append(to_string(++label_number));
+}
+
+string reg(){
+    string r = "reg"; 
+    return r.append(to_string(++reg_number));
+}
 
 char getChar(){
     if(file.is_open())
