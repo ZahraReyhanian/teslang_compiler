@@ -160,6 +160,9 @@ void num();
 void iden();
 bool check_same_type(string type, int i, int j);
 
+void generateCodeFucDef(string name);
+void generateCodeReturn(exprVal exp);
+
 int main () {
     file.open ("grammer.txt");
     if(! file){
@@ -247,9 +250,9 @@ string label(){
     return l.append(to_string(++label_number));
 }
 
-string reg(){
-    string r = "reg"; 
-    return r.append(to_string(++reg_number));
+string reg(int number){
+    string r = "r"; 
+    return r.append(to_string(number));
 }
 
 char getChar(){
@@ -425,7 +428,9 @@ void prog(){
     }
 }
 
+///****func -> func-type iden ( flist ) { body }********////////
 void func(){
+    reg_number = -1;
     string type = func_type();
     table func;
     func.isFunc = true;
@@ -446,7 +451,10 @@ void func(){
         
     }
     func.var = getToken();
+    generateCodeFucDef(func.var);
+
     iden();
+
     if(getToken() == "("){
         dropToken();
         int n = flist(func.list);
@@ -492,6 +500,16 @@ void body(){
     }
 }
 
+/******
+ * stmt -> expr ; |
+            defvar ; |
+            if ( expr ) stmt |
+            if ( expr ) stmt else stmt |
+            while  ( expr ) stmt |
+            for (iden in expr ) stmt |
+            return expr; |
+            { body }
+            *******/
 void stmt(){
     string tok = getToken();
     int size = symbolTable.size();
@@ -533,6 +551,7 @@ void stmt(){
             if(type != return_type) syntax_error("return type mismatch!");
         }
         semicol();
+        generateCodeReturn(t);
     }
     else if(tok == "{")
     {
@@ -669,6 +688,7 @@ void defvar(){
     variable.numberOfparam = 0;
     bool err = false;
     string tok = getToken();
+
     if (isKey(tok))
     {
         syntax_error(tok + "is a key word");
@@ -681,6 +701,7 @@ void defvar(){
     }
     if(!err && isIdentifier(tok)){
         variable.var = tok;
+        variable.reg = ++reg_number;
         symbolTable.push_back(variable);
     }
     iden();
@@ -693,8 +714,9 @@ exprVal expr(){
 //assign-expr -> cond-expr |
      //               unary-expr  = assign-expr
 exprVal assign_expr(){
-    exprVal t;
-    string type = cond_expr().type;
+    exprVal t1, t2;
+    t1 = cond_expr();
+    string type = t1.type;
     string type2;
     bool err = false;
     if (getToken() == "=")
@@ -702,7 +724,8 @@ exprVal assign_expr(){
         while (getToken() == "=")
         {
             dropToken();
-            type2 = cond_expr().type;
+            t2 = cond_expr();
+            type2 = t2.type;
             if(type != type2){
                 err = true;
                 syntax_error("illegal assignment!");
@@ -711,9 +734,9 @@ exprVal assign_expr(){
     }  
     if (!err)
     {
-        t.type = type;
+        t1.type = type;
     }
-    return  t;
+    return  t1;
 }
 
 exprVal cond_expr(){
@@ -721,14 +744,16 @@ exprVal cond_expr(){
 }
     
 exprVal or_expr(){
-    exprVal t;
-    string type = and_expr().type;
+    exprVal t1, t2;
+    t1 = and_expr();
+    string type = t1.type;
     string type2;
     bool err = false;
     while (getToken() == "||")
     {
         dropToken();
-        type2 = and_expr().type;
+        t2 = and_expr();
+        type2 = t2.type;
         if(type != type2){
             err = true;
             syntax_error("illegal or expression !");
@@ -736,21 +761,23 @@ exprVal or_expr(){
     }
     if (!err)
     {
-        t.type = type;
+        t1.type = type;
     }
     
-    return t; 
+    return t1; 
 }
 
 exprVal and_expr(){
-    exprVal t;
-    string type = equ_expr().type;
+    exprVal t1, t2;
+    t1 = equ_expr();
+    string type = t1.type;
     string type2;
     bool err = false;
     while (getToken() == "&&")
     {
         dropToken();
-        type2 = equ_expr().type;
+        t2 = equ_expr();
+        type2 = t2.type;
         if(type != type2){
             err = true;
             syntax_error("illegal and expression !");
@@ -758,21 +785,23 @@ exprVal and_expr(){
     }
     if (!err)
     {
-        t.type = type;
+        t1.type = type;
     }
     
-    return t;
+    return t1;
 }
 
 exprVal equ_expr(){
-    exprVal t;
-    string type = relational_expr().type;
+    exprVal t1 , t2;
+    t1 = relational_expr();
+    string type = t1.type;
     string type2;
     bool err = false;
     while (getToken() == "==" || getToken() == "!=")
     {
         dropToken();
-        type2 = relational_expr().type;
+        t2 = relational_expr();
+        type2 = t2.type;
         if(type != type2){
             err = true;
             syntax_error("illegal equality expression !");
@@ -780,20 +809,22 @@ exprVal equ_expr(){
     }
     if(!err)
     {
-        t.type = type;
+        t1.type = type;
     }
-    return t;
+    return t1;
 }
 
 exprVal relational_expr(){
-    exprVal t;
-    string type = add_expr().type;
+    exprVal t1, t2;
+    t1 = add_expr();
+    string type = t1.type;
     string type2;
     bool err = false;
     while (getToken() == ">" || getToken() == "<" || getToken() == ">=" || getToken() == "<=")
     {
         dropToken();
-        type2 = add_expr().type;
+        t2 = add_expr();
+        type2 = t2.type;
         if(type != type2){
             err = true;
             syntax_error("illegal relational expression !");
@@ -801,42 +832,46 @@ exprVal relational_expr(){
     }
     if (!err)
     {
-        t.type = type;
+        t1.type = type;
     }
     
-    return t;
+    return t1;
 }
 
 exprVal add_expr(){
-    exprVal t;
-    string type = mul_expr().type;
+    exprVal t1 , t2;
+    t1 = mul_expr();
+    string type = t1.type;
     bool in = false;
     while (getToken() == "+" || getToken() == "-")
     {
         if(type != NUM) syntax_error("incompatible operands!");
         dropToken();
-        type = mul_expr().type;
+        t2 = mul_expr();
+        type = t2.type;
         in = true;
     }
     if(type != NUM && in) syntax_error("incompatible operands!");
-    t.type = type;//todo check
-    return t;
+    t1.type = type;//todo check
+    return t1;
 }
 
 exprVal mul_expr(){
-    exprVal t;
-    string type = unary_expr().type;
+    exprVal t1 , t2;
+    t1 = unary_expr();
+    string type = t1.type;
     bool in = false;
     while (getToken() == "*" || getToken() == "/" || getToken() == "%")
     {
         if(type != NUM) syntax_error("incompatible operands!");
         dropToken();
-        type = unary_expr().type;
+        t2 = unary_expr();
+        type = t2.type;
         in = true;
     }
     if(type != NUM && in) syntax_error("incompatible operands!");
-    t.type = type;
-    return t;
+    t1.type = type;
+    return t1;
 }
 
 exprVal unary_expr(){
@@ -849,8 +884,9 @@ exprVal unary_expr(){
 }
 
 exprVal postfix_expr(){
-    exprVal t;
-    string type = prim_expr().type;
+    exprVal t1, t2;
+    t1 = prim_expr();
+    string type = t1.type;
     int isList = false;
     if(getToken() == "[")
         if(type != LIST)
@@ -859,7 +895,8 @@ exprVal postfix_expr(){
     {
         isList = true;
         dropToken();
-        type = expr().type;
+        t2 = expr();
+        type = t2.type;
         
         //expr should be num
         if(type != NUM)
@@ -876,14 +913,14 @@ exprVal postfix_expr(){
     }
     if (isList)
     {
-        t.type = NUM;
+        t1.type = NUM;
     }
     else
     {
-        t.type = type;
+        t1.type = type;
     }
     
-    return t; 
+    return t1; 
 
 }
 
@@ -934,6 +971,7 @@ exprVal prim_expr(){
         v.val = stoi(getToken());
         t.value.push_back(v);
         t.type = NUM;
+        t.tok = getToken();
         num();
         return t;
     }
@@ -1128,3 +1166,27 @@ bool check_same_type(string type, int i, int j){
     else return false;
     
 }
+
+void generateCodeFucDef(string name){
+    irfile << "proc  " << name << '\n';
+}
+
+void generateCodeReturn(exprVal exp){
+    if (exp.reg != 0)
+    {
+        string str = "mov r0,";
+        if (isNum(exp.tok)) // todo check neg num
+        {
+            str.append(exp.tok);
+        }
+        else
+        {
+            str.append(reg(exp.reg));
+        }
+        
+        irfile << str << '\n';
+    }
+    
+    irfile << "ret\n\n";
+}
+

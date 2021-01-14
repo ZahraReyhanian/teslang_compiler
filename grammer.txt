@@ -1,25 +1,18 @@
-num find(list A, num x)
+num sum3(num a, num b , num c)
 {
-	num i;
-	num n;
-	i = 0;
-	for (n in A){
-		if (n == x)
-			return i;
-		i = A +1;
-	}
-	return -1;
+	num sum;
+	sum = a + b + c;
+	return sum;
 }
 
 num main()
 {
-	list A;
 	num a;
-	A = list(3);
-	A = 5;
-	A[2] = A;
-	A[1] = 8;
-	A = find(A, 5);
-	numprint(find(a, 5));
+	num b;
+	num c;
+	a = numread();
+	b = numread();
+	c = numread();
+	numprint(sum3(a, b, c));
 	return 0;
 }

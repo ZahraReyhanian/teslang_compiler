@@ -1,0 +1,7 @@
+proc  sum3
+ret
+
+proc  main
+mov r0,0
+ret
+
