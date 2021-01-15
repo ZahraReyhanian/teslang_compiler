@@ -7,7 +7,7 @@ num sum3(num a, num b , num c)
 	#f = 8;
 	#sum = f + b;
 	#sum = c + 7;
-	return a + b + c;
+	return a + b * c;
 }
 
 num main()
@@ -25,6 +25,8 @@ num main()
 	a = numread();
 	b = numread();
 	c = numread();
+	sum = a < b;
+	a = sum;
 	numprint(sum3(a, b, c));
 	return 0;
 }

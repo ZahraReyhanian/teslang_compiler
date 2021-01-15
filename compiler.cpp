@@ -877,6 +877,7 @@ exprVal relational_expr(exprVal temp){
     string type = t1.type;
     string type2;
     bool err = false;
+    bool in = false;
     while (getToken() == ">" || getToken() == "<" || getToken() == ">=" || getToken() == "<=")
     {
         string tok = getToken();
@@ -888,14 +889,26 @@ exprVal relational_expr(exprVal temp){
             err = true;
             syntax_error("illegal relational expression !");
         } 
-        //generateCodeComp(exprVal res, t1, t2 , tok);
+        if(in == false){
+            if (temp.reg == -1)
+            {
+                reg_number ++;
+                temp.reg = reg_number;
+            }
+            generateCodeComp(temp, t1, t2 , tok);
+        }
+        else{
+            generateCodeComp(temp, temp, t2 , tok);
+        }
+        in = true;
     }
     if (!err)
     {
         t1.type = type;
     }
     
-    return t1;
+    if(in) return temp;
+    else return t1;
 }
 
 exprVal add_expr(exprVal temp){
@@ -947,16 +960,32 @@ exprVal mul_expr(exprVal temp){
     bool in = false;
     while (getToken() == "*" || getToken() == "/" || getToken() == "%")
     {
+        string tok = getToken();
         isexpr = true;
         if(type != NUM) syntax_error("incompatible operands!");
         dropToken();
         t2 = unary_expr(temp);
         type = t2.type;
+        if(in == false){
+            if (temp.reg == -1)
+            {
+                reg_number ++;
+                temp.reg = reg_number;
+            }
+            if(tok == "*") generateCodeArith(temp, t1, t2, "mul ");
+            else if(tok == "/") generateCodeArith(temp, t1, t2, "div ");
+            else generateCodeArith(temp, t1, t2, "mod ");
+        }
+        else{
+            if(tok == "*") generateCodeArith(temp, temp, t2, "mul ");
+            else if(tok == "/") generateCodeArith(temp, temp, t2, "div ");
+            else generateCodeArith(temp, temp, t2, "mod ");
+        }
         in = true;
     }
     if(type != NUM && in) syntax_error("incompatible operands!");
-    t1.type = type;
-    return t1;
+    if(in) return temp;
+    else return t1;
 }
 
 exprVal unary_expr(exprVal temp){
@@ -1422,5 +1451,69 @@ void generateCodeArith(exprVal res, exprVal e1, exprVal e2, string mode){
 }
 
 void generateCodeComp(exprVal res, exprVal e1, exprVal e2 , string mode){
-
+    if (isNum(e1.tok))
+    {
+        e1.reg = ++ reg_number;
+        generateCodeMov(e1, e1);
+        if(isNum(e2.tok))
+        {
+            e2.reg = ++ reg_number;
+            generateCodeMov(e2, e2);
+            irfile << "comp" << mode << " " << reg(res.reg) << ", " << to_string(reg_number - 1) << ", " << to_string(reg_number) << '\n';            
+            return;
+        }
+        else if(e2.reg == -1)
+        {
+            int i = isInSymbolTable(e2.tok, false);
+            if(i != -1 && symbolTable[i].reg == -1){
+                e2.reg = ++ reg_number;
+                symbolTable[i].reg = e2.reg;
+            }
+            else if(i != -1){
+                e2.reg = symbolTable[i].reg;
+            }
+        }
+        irfile << "comp" << mode << " " << reg(res.reg) << ", " << reg(e1.reg) << ", " << reg(e2.reg) << '\n';
+        return;
+    }
+    else if(isNum(e2.tok))
+    {
+        e2.reg = ++ reg_number;
+        generateCodeMov(e2, e2);
+        if(e1.reg == -1)
+        {
+            int i = isInSymbolTable(e1.tok, false);
+            if(i != -1 && symbolTable[i].reg == -1){
+                e1.reg = ++ reg_number;
+                symbolTable[i].reg = e1.reg;
+            }
+            else if(i != -1){
+                e1.reg = symbolTable[i].reg;
+            }
+        }
+        irfile << "comp" << mode << " " << reg(res.reg) << ", " << reg(e1.reg) << ", " << reg(e2.reg) << '\n';
+        return;
+    }
+    if(e1.reg == -1){
+        int i = isInSymbolTable(e1.tok, false);
+        if(i != -1 && symbolTable[i].reg == -1){
+            e1.reg = ++ reg_number;
+            symbolTable[i].reg = e1.reg;
+        }
+        else if(i != -1){
+            e1.reg = symbolTable[i].reg;
+        }
+    }
+    if(e2.reg == -1)
+    {
+        int i = isInSymbolTable(e2.tok, false);
+        if(i != -1 && symbolTable[i].reg == -1){
+            e2.reg = ++ reg_number;
+            symbolTable[i].reg = e2.reg;
+        }
+        else if(i != -1){
+            e2.reg = symbolTable[i].reg;
+        }
+    }
+    irfile << "comp" << mode << " " << reg(res.reg) << ", " << reg(e1.reg) << ", " << reg(e2.reg) << '\n';
 }
