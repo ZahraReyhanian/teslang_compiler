@@ -1,8 +1,13 @@
 num sum3(num a, num b , num c)
 {
-	num sum;
-	sum = a + b + c;
-	return sum;
+	#num sum;
+	#sum = ;
+	#sum = a - b;
+	#num f;
+	#f = 8;
+	#sum = f + b;
+	#sum = c + 7;
+	return a + b + c;
 }
 
 num main()
@@ -10,9 +15,12 @@ num main()
 	num a;
 	num b;
 	num c;
-	a = numread();
-	b = numread();
-	c = numread();
-	numprint(sum3(a, b, c));
+	num sum;
+	a = 4;
+	b = a;
+	c = 1;
+	sum = a + b + c;
+	a = sum +1;
+	b = sum + a;
 	return 0;
 }

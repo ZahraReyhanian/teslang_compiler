@@ -82,6 +82,7 @@ bool ret;
 string return_type;
 int label_number = -1;
 int reg_number = -1;
+bool isexpr = false;
 
 struct table
 {
@@ -141,14 +142,14 @@ void for_stmt();
 void defvar();
 exprVal expr();
 exprVal assign_expr();
-exprVal cond_expr();
-exprVal or_expr();
-exprVal and_expr();
-exprVal equ_expr();
-exprVal relational_expr();
-exprVal add_expr();
-exprVal mul_expr();
-exprVal unary_expr();
+exprVal cond_expr(exprVal temp);
+exprVal or_expr(exprVal temp);
+exprVal and_expr(exprVal temp);
+exprVal equ_expr(exprVal temp);
+exprVal relational_expr(exprVal temp);
+exprVal add_expr(exprVal temp);
+exprVal mul_expr(exprVal temp);
+exprVal unary_expr(exprVal temp);
 exprVal postfix_expr();
 exprVal prim_expr();
 void unary_oprator();
@@ -162,6 +163,10 @@ bool check_same_type(string type, int i, int j);
 
 void generateCodeFucDef(string name);
 void generateCodeReturn(exprVal exp);
+void generateCodeCall(string var);
+void generateCodeClist(string item);
+void generateCodeMov(exprVal e1, exprVal e2);
+void generateCodeArith(exprVal res, exprVal e1, exprVal e2 , string mode);
 
 int main () {
     file.open ("grammer.txt");
@@ -701,7 +706,6 @@ void defvar(){
     }
     if(!err && isIdentifier(tok)){
         variable.var = tok;
-        variable.reg = ++reg_number;
         symbolTable.push_back(variable);
     }
     iden();
@@ -714,23 +718,68 @@ exprVal expr(){
 //assign-expr -> cond-expr |
      //               unary-expr  = assign-expr
 exprVal assign_expr(){
-    exprVal t1, t2;
-    t1 = cond_expr();
+    exprVal t1, t2, tt;
+    isexpr = false;
+    t1 = cond_expr(tt);
     string type = t1.type;
     string type2;
     bool err = false;
     if (getToken() == "=")
     {
+        if (isexpr)
+        {
+            syntax_error("lvalue required as left operand of assignment!");
+        }
+        if(isNum(t1.tok))
+        {
+            syntax_error("lvalue required as left operand of assignment! num value???");
+        }
+        
+        isexpr = false;
         while (getToken() == "=")
         {
             dropToken();
-            t2 = cond_expr();
+            
+            t2 = cond_expr(t1);
             type2 = t2.type;
             if(type != type2){
                 err = true;
                 syntax_error("illegal assignment!");
             }
+            /// check register ///
+            if (t2.reg == -1)
+            {//todo check
+                if (t1.reg == -1)
+                {
+                    t1.reg = ++ reg_number;
+                }
+                
+                if(isNum(t2.tok)){
+                    generateCodeMov(t1, t2);
+                }
+            }
+            else if(t1.reg != t2.reg && t1.tok == t2.tok) {
+                // sum = a + b + c;
+                t1.reg = t2.reg;
+            }
+            else if(t1.reg != t2.reg && t1.tok != t2.tok){
+                // b = a;
+                if(t1.reg == -1){
+                   t1.reg = ++ reg_number; 
+                }
+                
+                generateCodeMov(t1, t2);
+            }
+            int i = isInSymbolTable(t1.tok, false);
+            if(i != -1 && t1.reg != -1){
+                symbolTable[i].reg = t1.reg;
+            }
+            /// end check register ///
+
+            t1 = t2;
+
         }
+
     }  
     if (!err)
     {
@@ -739,20 +788,21 @@ exprVal assign_expr(){
     return  t1;
 }
 
-exprVal cond_expr(){
-    return or_expr();
+exprVal cond_expr(exprVal temp){
+    return or_expr(temp);
 }
     
-exprVal or_expr(){
+exprVal or_expr(exprVal temp){
     exprVal t1, t2;
-    t1 = and_expr();
+    t1 = and_expr(temp);
     string type = t1.type;
     string type2;
     bool err = false;
     while (getToken() == "||")
     {
+        isexpr = true;
         dropToken();
-        t2 = and_expr();
+        t2 = and_expr(temp);
         type2 = t2.type;
         if(type != type2){
             err = true;
@@ -763,20 +813,21 @@ exprVal or_expr(){
     {
         t1.type = type;
     }
-    
+
     return t1; 
 }
 
-exprVal and_expr(){
+exprVal and_expr(exprVal temp){
     exprVal t1, t2;
-    t1 = equ_expr();
+    t1 = equ_expr(temp);
     string type = t1.type;
     string type2;
     bool err = false;
     while (getToken() == "&&")
     {
+        isexpr = true;
         dropToken();
-        t2 = equ_expr();
+        t2 = equ_expr(temp);
         type2 = t2.type;
         if(type != type2){
             err = true;
@@ -791,16 +842,17 @@ exprVal and_expr(){
     return t1;
 }
 
-exprVal equ_expr(){
+exprVal equ_expr(exprVal temp){
     exprVal t1 , t2;
-    t1 = relational_expr();
+    t1 = relational_expr(temp);
     string type = t1.type;
     string type2;
     bool err = false;
     while (getToken() == "==" || getToken() == "!=")
     {
+        isexpr = true;
         dropToken();
-        t2 = relational_expr();
+        t2 = relational_expr(temp);
         type2 = t2.type;
         if(type != type2){
             err = true;
@@ -814,16 +866,17 @@ exprVal equ_expr(){
     return t1;
 }
 
-exprVal relational_expr(){
+exprVal relational_expr(exprVal temp){
     exprVal t1, t2;
-    t1 = add_expr();
+    t1 = add_expr(temp);
     string type = t1.type;
     string type2;
     bool err = false;
     while (getToken() == ">" || getToken() == "<" || getToken() == ">=" || getToken() == "<=")
     {
+        isexpr = true;
         dropToken();
-        t2 = add_expr();
+        t2 = add_expr(temp);
         type2 = t2.type;
         if(type != type2){
             err = true;
@@ -838,34 +891,59 @@ exprVal relational_expr(){
     return t1;
 }
 
-exprVal add_expr(){
+exprVal add_expr(exprVal temp){
     exprVal t1 , t2;
-    t1 = mul_expr();
+    t1 = mul_expr(temp);
     string type = t1.type;
+    //temp = t1;
     bool in = false;
+    bool add;
     while (getToken() == "+" || getToken() == "-")
     {
+        isexpr = true;
+        if(getToken() == "+") add = true;
+        else add = false;
         if(type != NUM) syntax_error("incompatible operands!");
         dropToken();
-        t2 = mul_expr();
+        t2 = mul_expr(temp);
         type = t2.type;
+        if(in == false){
+            if (temp.reg == -1)
+            {
+                reg_number ++;
+                temp.reg = reg_number;
+            }
+            if(add) generateCodeArith(temp, t1, t2, "add ");
+            else generateCodeArith(temp, t1, t2, "sub ");
+        }
+        else{
+            if(add) generateCodeArith(temp, temp, t2, "add ");
+            else generateCodeArith(temp, temp, t2, "sub ");
+        }
         in = true;
+        
     }
+    if (type == NUM)
+    {
+        temp.type = NUM;
+    }
+    
     if(type != NUM && in) syntax_error("incompatible operands!");
-    t1.type = type;//todo check
-    return t1;
+    if(in) return temp;
+    else return t1;
 }
 
-exprVal mul_expr(){
+exprVal mul_expr(exprVal temp){
     exprVal t1 , t2;
-    t1 = unary_expr();
+    t1 = unary_expr(temp);
     string type = t1.type;
     bool in = false;
     while (getToken() == "*" || getToken() == "/" || getToken() == "%")
     {
+        isexpr = true;
         if(type != NUM) syntax_error("incompatible operands!");
         dropToken();
-        t2 = unary_expr();
+        t2 = unary_expr(temp);
         type = t2.type;
         in = true;
     }
@@ -874,10 +952,11 @@ exprVal mul_expr(){
     return t1;
 }
 
-exprVal unary_expr(){
+exprVal unary_expr(exprVal temp){
     unary_oprator();
     while (getToken() == "+" || getToken() == "-" || getToken() == "!")
     {
+        isexpr = true;
         unary_oprator();
     }
     return postfix_expr();
@@ -1005,7 +1084,10 @@ exprVal prim_expr(){
 }
 
 void unary_oprator(){
-    if(getToken() == "+" || getToken() == "-" || getToken() == "!") dropToken();        
+    if(getToken() == "+" || getToken() == "-" || getToken() == "!"){
+        dropToken(); 
+        isexpr = true;
+    }        
 }
 
 int flist(vector<table> &list){
@@ -1024,6 +1106,7 @@ int flist(vector<table> &list){
     variable.numberOfparam = 0;
     variable.var = getToken();
     iden();
+    variable.reg = ++reg_number;
     list.push_back(variable);
     while (! isFileEnd() && getToken() == ",")
     {
@@ -1037,6 +1120,7 @@ int flist(vector<table> &list){
         variable.numberOfparam = 0;
         variable.var = getToken();
         iden();
+        variable.reg = ++reg_number;
         list.push_back(variable);
         n ++;
     }
@@ -1051,7 +1135,10 @@ void clist(string var, int i){
         syntax_error(var + " function is not defined !");
         err = true;
     }
-    
+    if (!err)
+    {
+        generateCodeCall(var);
+    }
     if (getToken() == ")")
     {
         if(!err)
@@ -1088,7 +1175,7 @@ void clist(string var, int i){
             syntax_error("illegal number of parameter !");
         } 
     }
-    
+
     
 }
 
@@ -1172,8 +1259,7 @@ void generateCodeFucDef(string name){
 }
 
 void generateCodeReturn(exprVal exp){
-    if (exp.reg != 0)
-    {
+    if(exp.reg != 0){
         string str = "mov r0,";
         if (isNum(exp.tok)) // todo check neg num
         {
@@ -1183,10 +1269,108 @@ void generateCodeReturn(exprVal exp){
         {
             str.append(reg(exp.reg));
         }
-        
         irfile << str << '\n';
     }
     
     irfile << "ret\n\n";
+    
 }
+
+void generateCodeCall(string var){
+    string str = "call ";
+    str.append(var);
+    irfile << str;    
+}
+
+void generateCodeClist(string item){
+    string str = ", ";
+    str.append(item);
+    irfile << str;
+}
+
+void generateCodeMov(exprVal e1, exprVal e2){
+    string str = "mov ";
+    str.append(reg(e1.reg));
+    str.append(", ");
+    if(isNum(e2.tok)){//todo check neg num
+        str.append(e2.tok);
+        irfile << str << '\n';
+    }
+    else {
+        str.append(reg(e2.reg));
+        irfile << str << '\n';
+    }
+    
+}
+
+void generateCodeArith(exprVal res, exprVal e1, exprVal e2, string mode){
+    if (isNum(e1.tok))
+    {
+        e1.reg = ++ reg_number;
+        generateCodeMov(e1, e1);
+        if(isNum(e2.tok))
+        {
+            e2.reg = ++ reg_number;
+            generateCodeMov(e2, e2);
+            irfile << mode << reg(res.reg) << ", " << to_string(reg_number - 1) << ", " << to_string(reg_number) << '\n';            
+            return;
+        }
+        else if(e2.reg == -1)
+        {
+            int i = isInSymbolTable(e2.tok, false);
+            if(i != -1 && symbolTable[i].reg == -1){
+                e2.reg = ++ reg_number;
+                symbolTable[i].reg = e2.reg;
+            }
+            else if(i != -1){
+                e2.reg = symbolTable[i].reg;
+            }
+        }
+        irfile << mode << reg(res.reg) << ", " << reg(e1.reg) << ", " << reg(e2.reg) << '\n';
+        return;
+    }
+    else if(isNum(e2.tok))
+    {
+        e2.reg = ++ reg_number;
+        generateCodeMov(e2, e2);
+        if(e1.reg == -1)
+        {
+            int i = isInSymbolTable(e1.tok, false);
+            if(i != -1 && symbolTable[i].reg == -1){
+                e1.reg = ++ reg_number;
+                symbolTable[i].reg = e1.reg;
+            }
+            else if(i != -1){
+                e1.reg = symbolTable[i].reg;
+            }
+        }
+        irfile << mode << reg(res.reg) << ", " << reg(e1.reg) << ", " << reg(e2.reg) << '\n';
+        return;
+    }
+    if(e1.reg == -1){
+        int i = isInSymbolTable(e1.tok, false);
+        if(i != -1 && symbolTable[i].reg == -1){
+            e1.reg = ++ reg_number;
+            symbolTable[i].reg = e1.reg;
+        }
+        else if(i != -1){
+            e1.reg = symbolTable[i].reg;
+        }
+    }
+    if(e2.reg == -1)
+    {
+        int i = isInSymbolTable(e2.tok, false);
+        if(i != -1 && symbolTable[i].reg == -1){
+            e2.reg = ++ reg_number;
+            symbolTable[i].reg = e2.reg;
+        }
+        else if(i != -1){
+            e2.reg = symbolTable[i].reg;
+        }
+    }
+    irfile << mode << reg(res.reg) << ", " << reg(e1.reg) << ", " << reg(e2.reg) << '\n';
+    return;
+    
+}
+
 
