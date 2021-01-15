@@ -16,11 +16,15 @@ num main()
 	num b;
 	num c;
 	num sum;
-	a = 4;
-	b = a;
-	c = 1;
-	sum = a + b + c;
-	a = sum +1;
-	b = sum + a;
+	#a = 4;
+	#b = a;
+	#c = 1;
+	#sum = a + b + c;
+	#a = sum +1;
+	#b = sum + a;
+	a = numread();
+	b = numread();
+	c = numread();
+	numprint(sum3(a, b, c));
 	return 0;
 }

@@ -84,10 +84,16 @@ int label_number = -1;
 int reg_number = -1;
 bool isexpr = false;
 
+struct valStruct
+{
+    int val;
+    int index;
+};
+
 struct table
 {
     string var;
-    vector<int> value;
+    vector<valStruct> value;
     string type;
     bool isFunc;
     int numberOfparam;
@@ -97,16 +103,11 @@ struct table
 };
 vector<table> symbolTable;
 
-struct valStruct
-{
-    int val;
-    int index;
-};
-
 struct exprVal
 {
     string tok;
     string type;
+    bool isFunc;
     vector<valStruct> value;
     int reg = -1;
     int index = 0;
@@ -142,7 +143,7 @@ void for_stmt();
 void defvar();
 exprVal expr();
 exprVal assign_expr();
-exprVal cond_expr(exprVal temp);
+exprVal cond_expr(exprVal temp);// exprVal temp ===>> temp is the token in the left of = e.g a = b ... temp is a
 exprVal or_expr(exprVal temp);
 exprVal and_expr(exprVal temp);
 exprVal equ_expr(exprVal temp);
@@ -150,11 +151,11 @@ exprVal relational_expr(exprVal temp);
 exprVal add_expr(exprVal temp);
 exprVal mul_expr(exprVal temp);
 exprVal unary_expr(exprVal temp);
-exprVal postfix_expr();
-exprVal prim_expr();
+exprVal postfix_expr(exprVal temp);
+exprVal prim_expr(exprVal temp);
 void unary_oprator();
 int flist(vector<table> &list);
-void clist(string var, int i);
+void clist(string var, int i, exprVal temp);
 string type();
 string func_type();
 void num();
@@ -163,10 +164,11 @@ bool check_same_type(string type, int i, int j);
 
 void generateCodeFucDef(string name);
 void generateCodeReturn(exprVal exp);
-void generateCodeCall(string var);
-void generateCodeClist(string item);
+void generateCodeCall(string var, exprVal temp, int param, int i);
+void generateCodeClist(exprVal *item, bool isLast);
 void generateCodeMov(exprVal e1, exprVal e2);
 void generateCodeArith(exprVal res, exprVal e1, exprVal e2 , string mode);
+void generateCodeComp(exprVal res, exprVal e1, exprVal e2 , string mode);
 
 int main () {
     file.open ("grammer.txt");
@@ -747,7 +749,10 @@ exprVal assign_expr(){
                 syntax_error("illegal assignment!");
             }
             /// check register ///
-            if (t2.reg == -1)
+            if (t2.tok == NUMREAD){
+                continue;
+            }
+            else if (t2.reg == -1)
             {//todo check
                 if (t1.reg == -1)
                 {
@@ -874,6 +879,7 @@ exprVal relational_expr(exprVal temp){
     bool err = false;
     while (getToken() == ">" || getToken() == "<" || getToken() == ">=" || getToken() == "<=")
     {
+        string tok = getToken();
         isexpr = true;
         dropToken();
         t2 = add_expr(temp);
@@ -882,6 +888,7 @@ exprVal relational_expr(exprVal temp){
             err = true;
             syntax_error("illegal relational expression !");
         } 
+        //generateCodeComp(exprVal res, t1, t2 , tok);
     }
     if (!err)
     {
@@ -959,12 +966,12 @@ exprVal unary_expr(exprVal temp){
         isexpr = true;
         unary_oprator();
     }
-    return postfix_expr();
+    return postfix_expr(temp);
 }
 
-exprVal postfix_expr(){
+exprVal postfix_expr(exprVal temp){
     exprVal t1, t2;
-    t1 = prim_expr();
+    t1 = prim_expr(temp);
     string type = t1.type;
     int isList = false;
     if(getToken() == "[")
@@ -1009,18 +1016,18 @@ exprVal postfix_expr(){
                 num |
                 (expr)
                 *****/
-exprVal prim_expr(){
+exprVal prim_expr(exprVal temp){
     exprVal t;
     if (isIdentifier(getToken()))
     {
         string var = getToken();
         int i ;
         iden();
-        if(getToken() == "("){
+        if(getToken() == "("){// cal function
             i = isInSymbolTable(var, true);
             if(i == -1) syntax_error(var + " is not defined!");
             dropToken();
-            clist(var, i);
+            clist(var, i, temp);
             if (getToken() == ")")
             {
                 dropToken();
@@ -1029,11 +1036,13 @@ exprVal prim_expr(){
             {
                 syntax_error("expected )");
             }
+            t.isFunc = true;
         
         }
-        else{
+        else{// identifier
             i = isInSymbolTable(var, false);
             if(i == -1) syntax_error(var + " is not defined!");
+            t.isFunc = false;
         }
         //// todo check this
         if(i != -1) {
@@ -1128,16 +1137,12 @@ int flist(vector<table> &list){
     
 }
 
-void clist(string var, int i){
+void clist(string var, int i, exprVal temp){// var if function name , i is index of fuction in symbolTable
     bool err = false;
     if (i == -1)
     {
         syntax_error(var + " function is not defined !");
         err = true;
-    }
-    if (!err)
-    {
-        generateCodeCall(var);
     }
     if (getToken() == ")")
     {
@@ -1148,7 +1153,7 @@ void clist(string var, int i){
             {
                 syntax_error("illegal number of parameter !");
             }
-            
+            generateCodeCall(var, temp, symbolTable[i].numberOfparam, i);
         }
         return;
     }
@@ -1159,6 +1164,12 @@ void clist(string var, int i){
     int j = 0;
     bool same = check_same_type(t, i, j);// t is type, i is the index in symbolTable and j is index of list in the function in symbolTable
     if(!same) syntax_error("illegal parameter!");
+    if (!err)
+    {
+        generateCodeCall(var, temp, symbolTable[i].numberOfparam, i);//todo check tabe haye to dar to
+    }
+    generateCodeClist(&exp, symbolTable[i].numberOfparam -1 == j);
+    symbolTable[i].reg = exp.reg;
     while(! isFileEnd() && getToken() != ")" && getToken() == "," )
     {
         dropToken();
@@ -1167,6 +1178,7 @@ void clist(string var, int i){
         j++;
         same = check_same_type(t, i, j);
         if(!same) syntax_error("illegal parameter!");
+        generateCodeClist(&exp, symbolTable[i].numberOfparam -1 == j);
         n ++;
     }
     if(i != -1){
@@ -1276,16 +1288,52 @@ void generateCodeReturn(exprVal exp){
     
 }
 
-void generateCodeCall(string var){
+void generateCodeCall(string var, exprVal temp, int param, int i){
     string str = "call ";
-    str.append(var);
-    irfile << str;    
+    if(var == NUMREAD){
+        if(temp.reg == -1){
+            int i = isInSymbolTable(temp.tok, temp.isFunc);
+            if(i != -1){
+                if(symbolTable[i].reg == -1){
+                    temp.reg = ++ reg_number;
+                    symbolTable[i].reg = temp.reg;
+                }
+                else{
+                    temp.reg = symbolTable[i].reg;
+                }
+            }
+        }
+        str.append("iget, ");
+        str.append(reg(temp.reg));
+        symbolTable[i].reg = temp.reg;
+    }
+    else if(var == NUMPRINT){
+        str.append("iput");
+    }
+    else{
+        str.append(var);
+    }
+    if (param == 0) irfile << str << '\n';
+    else irfile << str;    
 }
 
-void generateCodeClist(string item){
+void generateCodeClist(exprVal *item , bool isLast){
     string str = ", ";
-    str.append(item);
-    irfile << str;
+    if(item->reg == -1){
+        int i = isInSymbolTable(item->tok, item->isFunc);
+        if(i != -1){
+            if(symbolTable[i].reg == -1){
+                item->reg = ++ reg_number;
+                symbolTable[i].reg = item->reg;
+            }
+            else{
+                item->reg = symbolTable[i].reg;
+            }
+        }
+    }
+    str.append(reg(item->reg));
+    if(isLast) irfile << str << '\n';
+    else irfile << str;
 }
 
 void generateCodeMov(exprVal e1, exprVal e2){
@@ -1373,4 +1421,6 @@ void generateCodeArith(exprVal res, exprVal e1, exprVal e2, string mode){
     
 }
 
+void generateCodeComp(exprVal res, exprVal e1, exprVal e2 , string mode){
 
+}
