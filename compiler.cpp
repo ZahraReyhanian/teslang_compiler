@@ -166,7 +166,8 @@ void generateCodeMov(exprVal e1, exprVal e2);
 void generateCodeLd(exprVal e1, exprVal e2);
 void generateCodeArith(exprVal res, exprVal e1, exprVal e2 , string mode);
 void generateCodeComp(exprVal res, exprVal e1, exprVal e2 , string mode);
-void generateCodeJmp(exprVal exp, string mode, string label);
+void generateCodeJmpCond(exprVal exp, string mode, string label);
+void generateCodeJmp(string label);
 void generateCodeLable(string label);
 
 int main () {
@@ -638,9 +639,9 @@ void if_stmt(){
                 dropToken();
                 string lbl = label();
                 string lbl2 = label();
-                generateCodeJmp(t, "jz", lbl);
+                generateCodeJmpCond(t, "jz", lbl);
                 stmt();
-                generateCodeJmp(t, "jmp", lbl2);
+                generateCodeJmp(lbl2);
                 generateCodeLable(lbl);//todo check
                 if(getToken() == ELSE)
                 {
@@ -668,13 +669,20 @@ void if_stmt(){
 void while_stmt(){
     if(getToken() == WHILE){
         dropToken();
+        //// generate ir code for while statement ////
+        string beg = label();
+        string end = label();
+        irfile << beg << endl;
         if(getToken() == "("){
             dropToken();
-            expr();
+            exprVal t = expr();
+            generateCodeJmpCond(t, "jz", end);
             if (getToken() == ")")
             {
                 dropToken();
                 stmt();
+                generateCodeJmp(beg);
+                generateCodeLable(end);
                 return;
             }
             else
@@ -1605,8 +1613,12 @@ void generateCodeComp(exprVal res, exprVal e1, exprVal e2 , string mode){
     irfile << "comp" << mode << " " << reg(res.reg) << ", " << reg(e1.reg) << ", " << reg(e2.reg) << '\n';
 }
 
-void generateCodeJmp(exprVal exp, string mode, string label){
+void generateCodeJmpCond(exprVal exp, string mode, string label){
     irfile << mode << " " << reg(exp.reg) << ", " << label << '\n';
+}
+
+void generateCodeJmp(string label) {
+    irfile << "jmp " << label << '\n';
 }
 
 void generateCodeLable(string label){
