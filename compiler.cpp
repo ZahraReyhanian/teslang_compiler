@@ -83,23 +83,18 @@ string return_type;
 int label_number = -1;
 int reg_number = -1;
 bool isexpr = false;
-
-struct valStruct
-{
-    int val;
-    int index;
-};
+bool itemList = false;
 
 struct table
 {
     string var;
-    vector<valStruct> value;
+    vector<table> values;//for list type
     string type;
     bool isFunc;
     int numberOfparam;
     int reg = -1;
     vector<table> list;
-
+    int index = -1;//index of list item in values vector
 };
 vector<table> symbolTable;
 
@@ -107,10 +102,10 @@ struct exprVal
 {
     string tok;
     string type;
+    int val;
     bool isFunc;
-    vector<valStruct> value;
     int reg = -1;
-    int index = 0;
+    int index = -1;// the index of variable in symbolTable
 };
 
 string label();
@@ -168,6 +163,7 @@ void generateCodeReturn(exprVal exp);
 void generateCodeCall(string var, exprVal temp, int param, int i);
 void generateCodeClist(exprVal *item, bool isLast);
 void generateCodeMov(exprVal e1, exprVal e2);
+void generateCodeLd(exprVal e1, exprVal e2);
 void generateCodeArith(exprVal res, exprVal e1, exprVal e2 , string mode);
 void generateCodeComp(exprVal res, exprVal e1, exprVal e2 , string mode);
 void generateCodeJmp(exprVal exp, string mode, string label);
@@ -777,10 +773,12 @@ exprVal expr(){
 exprVal assign_expr(){
     exprVal t1, t2, tt;
     isexpr = false;
+    itemList = false;
     t1 = cond_expr(tt);
     string type = t1.type;
     string type2;
     bool err = false;
+    bool il = itemList; 
     if (getToken() == "=")
     {
         if (isexpr)
@@ -796,7 +794,6 @@ exprVal assign_expr(){
         while (getToken() == "=")
         {
             dropToken();
-            
             t2 = cond_expr(t1);
             type2 = t2.type;
             if(type != type2){
@@ -808,13 +805,14 @@ exprVal assign_expr(){
                 continue;
             }
             else if (t2.reg == -1)
-            {//todo check
+            {//todo check that maybe num token has register
                 if (t1.reg == -1)
                 {
                     t1.reg = ++ reg_number;
                 }
                 
                 if(isNum(t2.tok)){
+                    //symbolTable[t1.index].val = t2.val;
                     generateCodeMov(t1, t2);
                 }
             }
@@ -830,14 +828,12 @@ exprVal assign_expr(){
                 
                 generateCodeMov(t1, t2);
             }
-            int i = isInSymbolTable(t1.tok, false);
-            if(i != -1 && t1.reg != -1){
+            int i = t1.index;
+            if(i != -1 && t1.reg != -1 && il == false){
                 symbolTable[i].reg = t1.reg;
             }
             /// end check register ///
-
             t1 = t2;
-
         }
 
     }  
@@ -1060,16 +1056,16 @@ exprVal unary_expr(exprVal temp){
     return postfix_expr(temp);
 }
 
-exprVal postfix_expr(exprVal temp){
+exprVal postfix_expr(exprVal temp){//todo add regiter to values list of identifier in symbolTable
     exprVal t1, t2;
     t1 = prim_expr(temp);
     string type = t1.type;
-    int isList = false;
     if(getToken() == "[")
         if(type != LIST)
             syntax_error("The identifier should be in type list");
+    bool isList = false;
     while (getToken() == "[")
-    {
+    {   
         isList = true;
         dropToken();
         t2 = expr();
@@ -1087,16 +1083,43 @@ exprVal postfix_expr(exprVal temp){
             syntax_error("expected ]");
         }
         
-    }
-    if (isList)
-    {
+        //// check register ////
+        if(t1.reg == -1)
+        {
+            if(t1.index != -1)
+            {
+                if(symbolTable[t1.index].reg == -1){
+                    symbolTable[t1.index].reg = ++ reg_number;
+                    t1.reg = reg_number;
+                }
+            }
+        }
+        if(t2.reg == -1){
+            if(isNum(t2.tok)) {
+                t2.reg = ++ reg_number;
+                generateCodeMov(t2, t2);
+            }
+            else if(t2.index != -1)
+            {
+                if(symbolTable[t2.index].reg == -1){
+                    symbolTable[t2.index].reg = ++ reg_number;
+                    t2.reg = reg_number;
+                }
+            }
+        }
+        ///// generate code for ir file /////
+        irfile << "mov " << reg(++reg_number) << ", 1\n" ;
+        irfile << "add " << reg(reg_number) << ", " << reg(reg_number) << ", " << reg(t2.reg) << '\n';
+        irfile << "mov " << reg(++reg_number) << ", 8\n" ;
+        irfile << "mul " << reg(reg_number) << ", " << reg(reg_number) << ", " << reg(reg_number -1) << '\n';
+        irfile << "add " << reg(t1.reg) << ", " << reg(t1.reg) << ", " << reg(reg_number) << '\n';
+        irfile << "ld " << reg(++reg_number) << ", " <<  reg(t1.reg) << '\n';
+        irfile << "sub " << reg(t1.reg) << ", " << reg(t1.reg) << ", " << reg(reg_number - 1) << '\n';
+        t1.reg = reg_number;
         t1.type = NUM;
+
     }
-    else
-    {
-        t1.type = type;
-    }
-    
+    itemList = isList;
     return t1; 
 
 }
@@ -1140,17 +1163,15 @@ exprVal prim_expr(exprVal temp){
             t.tok = var;
             t.reg = symbolTable[i].reg;
             t.type = symbolTable[i].type;
+            t.index = i;
         } 
         return t;
     }
     else if(isNum(getToken()))
     {
-        valStruct v;
-        v.index = 0;
-        v.val = stoi(getToken());
-        t.value.push_back(v);
         t.type = NUM;
         t.tok = getToken();
+        t.val = stoi(t.tok);
         num();
         return t;
     }
@@ -1442,16 +1463,20 @@ void generateCodeMov(exprVal e1, exprVal e2){
     
 }
 
+void generateCodeLd(exprVal e1, exprVal e2){
+    irfile << "ld " << reg(e1.reg) << ", " << reg(e2.reg) << '\n';
+}
+
 void generateCodeArith(exprVal res, exprVal e1, exprVal e2, string mode){
     if (isNum(e1.tok))
     {
-        e1.reg = ++ reg_number;
+        if(e1.reg == -1) e1.reg = ++ reg_number;
         generateCodeMov(e1, e1);
         if(isNum(e2.tok))
         {
-            e2.reg = ++ reg_number;
+            if(e2.reg == -1) e2.reg = ++ reg_number;
             generateCodeMov(e2, e2);
-            irfile << mode << reg(res.reg) << ", " << to_string(reg_number - 1) << ", " << to_string(reg_number) << '\n';            
+            irfile << mode << reg(res.reg) << ", " << reg(e1.reg) << ", " << reg(e2.reg) << '\n';            
             return;
         }
         else if(e2.reg == -1)
@@ -1521,7 +1546,7 @@ void generateCodeComp(exprVal res, exprVal e1, exprVal e2 , string mode){
         {
             e2.reg = ++ reg_number;
             generateCodeMov(e2, e2);
-            irfile << "comp" << mode << " " << reg(res.reg) << ", " << to_string(reg_number - 1) << ", " << to_string(reg_number) << '\n';            
+            irfile << "comp" << mode << " " << reg(res.reg) << ", " << reg(reg_number - 1) << ", " << reg(reg_number) << '\n';            
             return;
         }
         else if(e2.reg == -1)

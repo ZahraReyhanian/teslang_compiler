@@ -1,37 +1,28 @@
-num sum3(num a, num b , num c)
-{
-	#num sum;
-	#sum = ;
-	#sum = a - b;
-	#num f;
-	#f = 8;
-	#sum = f + b;
-	#sum = c + 7;
-	return a + b * c;
-}
-
 num main()
 {
 	num a;
-	num b;
-	num c;
-	num sum;
+	list b;
+	#num c;
+	#num sum;
 	#a = 4;
 	#b = a;
 	#c = 1;
 	#sum = a + b + c;
 	#a = sum +1;
 	#b = sum + a;
-	a = numread();
-	b = numread();
-	c = numread();
-	if(sum) {
-		a = a + b;
-		b = 7;
-	}
-	else {
-		a = a + 1;
-	}
-	numprint(sum3(a, b, c));
+	#a = numread();
+	#b = numread();
+	#c = numread();
+	#if(sum) {
+		#b[1] = 7;
+		#a = a + b[1];
+	#}
+	#else {
+	#	a = a + 1;
+	#}
+	#numprint(sum3(a, b, c));
+	b[2] = b[1] + 4;
+	b[3] = 7;
+	b[5] = 11;
 	return 0;
 }
