@@ -132,6 +132,7 @@ bool isKey(string tok);
 bool isIdentifier(string tok);
 bool isNum(string tok);
 int isInSymbolTable(string name, bool isFunc);
+int searchTok(string name);
 void prog();
 void func();
 void body();
@@ -169,6 +170,8 @@ void generateCodeClist(exprVal *item, bool isLast);
 void generateCodeMov(exprVal e1, exprVal e2);
 void generateCodeArith(exprVal res, exprVal e1, exprVal e2 , string mode);
 void generateCodeComp(exprVal res, exprVal e1, exprVal e2 , string mode);
+void generateCodeJmp(exprVal exp, string mode, string label);
+void generateCodeLable(string label);
 
 int main () {
     file.open ("grammer.txt");
@@ -407,6 +410,18 @@ int isInSymbolTable(string name, bool isFunc ){
     return -1;
 }
 
+int searchTok(string name){
+    for (int i = symbolTable.size() - 1; i >= 0; i--)
+    {
+        if (symbolTable[i].var == name)
+        {
+            return i;
+        }
+        
+    }
+    return -1;
+}
+
 void prog(){
     while (true)
     {
@@ -587,15 +602,55 @@ void if_stmt(){
         dropToken();
         if(getToken() == "("){
             dropToken();
-            expr();
+            exprVal t = expr();
+            if(t.reg == -1){
+                if(t.tok == "")
+                    syntax_error("expected primary-expression before ')' token");
+                else
+                {
+                    if(isNum(t.tok)){
+                        t.reg = ++ reg_number;
+                        generateCodeMov(t, t);
+                    }
+                    else {
+                        int i = searchTok(t.tok);
+                        if(i != -1){//todo check type and isFunc
+                            if(symbolTable[i].reg != -1){
+                                t.reg = symbolTable[i].reg;
+                            }
+                            else{
+                                symbolTable[i].reg = ++ reg_number;
+                                t.reg = symbolTable[i].reg;
+                                if (symbolTable[i].type == NUM)
+                                {
+                                    exprVal tt;
+                                    tt.tok = "0";
+                                    generateCodeMov(t, tt);
+                                }
+                                else if(symbolTable[i].type == NIL)
+                                {
+                                    syntax_error("could not convert from nil to num");
+                                }
+                            }
+                        }
+                    }
+                }
+                
+            }
             if (getToken() == ")")
             {
                 dropToken();
+                string lbl = label();
+                string lbl2 = label();
+                generateCodeJmp(t, "jz", lbl);
                 stmt();
+                generateCodeJmp(t, "jmp", lbl2);
+                generateCodeLable(lbl);//todo check
                 if(getToken() == ELSE)
                 {
                     dropToken();
                     stmt();
+                    generateCodeLable(lbl2);
                 }
                 return;
             }
@@ -906,7 +961,10 @@ exprVal relational_expr(exprVal temp){
     {
         t1.type = type;
     }
-    
+    if (type == NUM)
+    {
+        temp.type = NUM;
+    }
     if(in) return temp;
     else return t1;
 }
@@ -984,6 +1042,10 @@ exprVal mul_expr(exprVal temp){
         in = true;
     }
     if(type != NUM && in) syntax_error("incompatible operands!");
+    if (type == NUM)
+    {
+        temp.type = NUM;
+    }
     if(in) return temp;
     else return t1;
 }
@@ -1517,3 +1579,12 @@ void generateCodeComp(exprVal res, exprVal e1, exprVal e2 , string mode){
     }
     irfile << "comp" << mode << " " << reg(res.reg) << ", " << reg(e1.reg) << ", " << reg(e2.reg) << '\n';
 }
+
+void generateCodeJmp(exprVal exp, string mode, string label){
+    irfile << mode << " " << reg(exp.reg) << ", " << label << '\n';
+}
+
+void generateCodeLable(string label){
+    irfile << label << ":\n";
+}
+
