@@ -1,31 +1,13 @@
+num sum2(num a, num b)
+{
+	return a+b;
+}
 num main()
 {
-	#num a;
-	#list b;
-	#num c;
-	num sum;
-	#a = 4;
-	#b = a;
-	#c = 1;
-	#sum = a + b + c;
-	#a = sum +1;
-	#b = sum + a;
-	#a = numread();
-	#b = numread();
-	#c = numread();
-	#if(sum) {
-		#b[1] = 7;
-		#a = a + b[1];
-	#}
-	#else {
-	#	a = a + 1;
-	#}
-	#numprint(sum3(a, b, c));
-	#b[2] = b[1] + 4;
-	#b[3] = 7;
-	#b[5] = 11;
-	while(sum < 10) {
-		sum = sum + 1;
-	}
+	list a;
+	a = makelist(5);
+	a[3] = 7;
+	a[0] = 3;
+	numprint(sum2(a[0], a[3]));
 	return 0;
 }

@@ -1,12 +1,54 @@
+proc  sum2
+add r2, r0, r1
+mov r0,r2
+ret
+
 proc  main
-label0
-mov r1, 10
-comp< r0, r2, r1
-jz r0, label1
-mov r3, 1
-add r2, r2, r3
-jmp label0
-label1:
+mov r0, 5
+mov r1, 8
+mul r0, r0, r1
+call mem, r0
+mov r2, r0
+mov r3, 3
+mov r4, 1
+add r4, r4, r3
+mov r5, 8
+mul r5, r5, r4
+add r2, r2, r5
+mov r6, r2
+sub r2, r2, r5
+mov r7, 7
+st r7, r6
+mov r8, 0
+mov r9, 1
+add r9, r9, r8
+mov r10, 8
+mul r10, r10, r9
+add r2, r2, r10
+mov r11, r2
+sub r2, r2, r10
+mov r12, 3
+st r12, r11
+mov r13, 0
+mov r14, 1
+add r14, r14, r13
+mov r15, 8
+mul r15, r15, r14
+add r2, r2, r15
+mov r16, r2
+sub r2, r2, r15
+ld r17, r16
+mov r18, 3
+mov r19, 1
+add r19, r19, r18
+mov r20, 8
+mul r20, r20, r19
+add r2, r2, r20
+mov r21, r2
+sub r2, r2, r20
+ld r22, r21
+call sum2, r17, r22
+call iput, r17
 mov r0,0
 ret
 

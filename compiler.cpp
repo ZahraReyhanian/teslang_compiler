@@ -83,7 +83,6 @@ string return_type;
 int label_number = -1;
 int reg_number = -1;
 bool isexpr = false;
-bool itemList = false;
 
 struct table
 {
@@ -104,6 +103,7 @@ struct exprVal
     string type;
     int val;
     bool isFunc;
+    bool itemList = false;
     int reg = -1;
     int index = -1;// the index of variable in symbolTable
 };
@@ -160,8 +160,7 @@ bool check_same_type(string type, int i, int j);
 
 void generateCodeFucDef(string name);
 void generateCodeReturn(exprVal exp);
-void generateCodeCall(string var, exprVal temp, int param, int i);
-void generateCodeClist(exprVal *item, bool isLast);
+void generateCodeCall(string var, exprVal temp, int param, int i, string items);
 void generateCodeMov(exprVal e1, exprVal e2);
 void generateCodeLd(exprVal e1, exprVal e2);
 void generateCodeArith(exprVal res, exprVal e1, exprVal e2 , string mode);
@@ -641,13 +640,17 @@ void if_stmt(){
                 string lbl2 = label();
                 generateCodeJmpCond(t, "jz", lbl);
                 stmt();
-                generateCodeJmp(lbl2);
-                generateCodeLable(lbl);//todo check
+                //todo check
                 if(getToken() == ELSE)
                 {
+                    generateCodeJmp(lbl2);
+                    generateCodeLable(lbl);
                     dropToken();
                     stmt();
                     generateCodeLable(lbl2);
+                }
+                else {
+                    generateCodeLable(lbl);
                 }
                 return;
             }
@@ -781,12 +784,11 @@ exprVal expr(){
 exprVal assign_expr(){
     exprVal t1, t2, tt;
     isexpr = false;
-    itemList = false;
     t1 = cond_expr(tt);
     string type = t1.type;
     string type2;
     bool err = false;
-    bool il = itemList; 
+    bool il = t1.itemList; 
     if (getToken() == "=")
     {
         if (isexpr)
@@ -812,8 +814,24 @@ exprVal assign_expr(){
             if (t2.tok == NUMREAD){
                 continue;
             }
+            else if(il) {//a[2] = 7
+                if(isNum(t2.tok)){
+                    t2.reg = ++ reg_number;
+                    generateCodeMov(t2, t2);
+                }
+                irfile << "st " << reg(t2.reg) << ", " << reg(t1.reg) << '\n';
+            }
+            else if(t2.itemList)
+            {
+                if (t1.reg == -1)
+                {
+                    t1.reg = ++ reg_number;
+                }
+                irfile << "ld " << reg(t1.reg) << ", " << reg(t2.reg) << '\n';
+            }
             else if (t2.reg == -1)
             {//todo check that maybe num token has register
+                
                 if (t1.reg == -1)
                 {
                     t1.reg = ++ reg_number;
@@ -1121,13 +1139,13 @@ exprVal postfix_expr(exprVal temp){//todo add regiter to values list of identifi
         irfile << "mov " << reg(++reg_number) << ", 8\n" ;
         irfile << "mul " << reg(reg_number) << ", " << reg(reg_number) << ", " << reg(reg_number -1) << '\n';
         irfile << "add " << reg(t1.reg) << ", " << reg(t1.reg) << ", " << reg(reg_number) << '\n';
-        irfile << "ld " << reg(++reg_number) << ", " <<  reg(t1.reg) << '\n';
+        irfile << "mov " << reg(++reg_number) << ", " <<  reg(t1.reg) << '\n';
         irfile << "sub " << reg(t1.reg) << ", " << reg(t1.reg) << ", " << reg(reg_number - 1) << '\n';
         t1.reg = reg_number;
         t1.type = NUM;
 
     }
-    itemList = isList;
+    t1.itemList = isList;
     return t1; 
 
 }
@@ -1259,6 +1277,7 @@ int flist(vector<table> &list){
 
 void clist(string var, int i, exprVal temp){// var if function name , i is index of fuction in symbolTable
     bool err = false;
+    string items = "";
     if (i == -1)
     {
         syntax_error(var + " function is not defined !");
@@ -1273,7 +1292,7 @@ void clist(string var, int i, exprVal temp){// var if function name , i is index
             {
                 syntax_error("illegal number of parameter !");
             }
-            generateCodeCall(var, temp, symbolTable[i].numberOfparam, i);
+            generateCodeCall(var, temp, symbolTable[i].numberOfparam, i, "");
         }
         return;
     }
@@ -1284,12 +1303,19 @@ void clist(string var, int i, exprVal temp){// var if function name , i is index
     int j = 0;
     bool same = check_same_type(t, i, j);// t is type, i is the index in symbolTable and j is index of list in the function in symbolTable
     if(!same) syntax_error("illegal parameter!");
-    if (!err)
-    {
-        generateCodeCall(var, temp, symbolTable[i].numberOfparam, i);//todo check tabe haye to dar to
+    if(exp.reg == -1){
+        exp.reg = ++ reg_number;
     }
-    generateCodeClist(&exp, symbolTable[i].numberOfparam -1 == j);
+    if(isNum(exp.tok)){
+        generateCodeMov(exp, exp);
+    }
+    else if(exp.itemList){
+        irfile << "ld " << reg(++reg_number) << ", "<< reg(exp.reg) << endl;
+        exp.reg = reg_number;
+    }
+    items.append(reg(exp.reg));
     symbolTable[i].reg = exp.reg;
+    string cama = ", ";
     while(! isFileEnd() && getToken() != ")" && getToken() == "," )
     {
         dropToken();
@@ -1298,8 +1324,22 @@ void clist(string var, int i, exprVal temp){// var if function name , i is index
         j++;
         same = check_same_type(t, i, j);
         if(!same) syntax_error("illegal parameter!");
-        generateCodeClist(&exp, symbolTable[i].numberOfparam -1 == j);
+        if(exp.reg == -1){
+            exp.reg = ++ reg_number;
+        }
+        if(isNum(exp.tok)){
+            generateCodeMov(exp, exp);
+        }
+        else if(exp.itemList){
+            irfile << "ld " << reg(++reg_number) << ", "<< reg(exp.reg) << endl;
+            exp.reg = reg_number;
+        }
+        items.append(cama.append(reg(exp.reg)));
         n ++;
+    }
+    if (!err)
+    {
+        generateCodeCall(var, temp, symbolTable[i].numberOfparam, i, items);//todo check tabe haye to dar to
     }
     if(i != -1){
        if (n != symbolTable[i].numberOfparam)
@@ -1408,7 +1448,7 @@ void generateCodeReturn(exprVal exp){
     
 }
 
-void generateCodeCall(string var, exprVal temp, int param, int i){
+void generateCodeCall(string var, exprVal temp, int param, int i, string items){
     string str = "call ";
     if(var == NUMREAD){
         if(temp.reg == -1){
@@ -1430,31 +1470,19 @@ void generateCodeCall(string var, exprVal temp, int param, int i){
     else if(var == NUMPRINT){
         str.append("iput");
     }
+    else if(var == MAKELIST){
+        reg_number++;
+        irfile << "mov " << reg(reg_number) << ", 8" << '\n';
+        irfile << "mul " << items << ", " << items << ", "<< reg(reg_number) << '\n';
+        str.append("mem");
+    }
     else{
         str.append(var);
     }
     if (param == 0) irfile << str << '\n';
-    else irfile << str;    
+    else irfile << str << ", " << items << '\n';    
 }
 
-void generateCodeClist(exprVal *item , bool isLast){
-    string str = ", ";
-    if(item->reg == -1){
-        int i = isInSymbolTable(item->tok, item->isFunc);
-        if(i != -1){
-            if(symbolTable[i].reg == -1){
-                item->reg = ++ reg_number;
-                symbolTable[i].reg = item->reg;
-            }
-            else{
-                item->reg = symbolTable[i].reg;
-            }
-        }
-    }
-    str.append(reg(item->reg));
-    if(isLast) irfile << str << '\n';
-    else irfile << str;
-}
 
 void generateCodeMov(exprVal e1, exprVal e2){
     string str = "mov ";
@@ -1554,7 +1582,7 @@ void generateCodeComp(exprVal res, exprVal e1, exprVal e2 , string mode){
         {
             e2.reg = ++ reg_number;
             generateCodeMov(e2, e2);
-            irfile << "comp" << mode << " " << reg(res.reg) << ", " << reg(reg_number - 1) << ", " << reg(reg_number) << '\n';            
+            irfile << "cmp" << mode << " " << reg(res.reg) << ", " << reg(reg_number - 1) << ", " << reg(reg_number) << '\n';            
             return;
         }
         else if(e2.reg == -1)
@@ -1568,7 +1596,7 @@ void generateCodeComp(exprVal res, exprVal e1, exprVal e2 , string mode){
                 e2.reg = symbolTable[i].reg;
             }
         }
-        irfile << "comp" << mode << " " << reg(res.reg) << ", " << reg(e1.reg) << ", " << reg(e2.reg) << '\n';
+        irfile << "cmp" << mode << " " << reg(res.reg) << ", " << reg(e1.reg) << ", " << reg(e2.reg) << '\n';
         return;
     }
     else if(isNum(e2.tok))
@@ -1586,7 +1614,7 @@ void generateCodeComp(exprVal res, exprVal e1, exprVal e2 , string mode){
                 e1.reg = symbolTable[i].reg;
             }
         }
-        irfile << "comp" << mode << " " << reg(res.reg) << ", " << reg(e1.reg) << ", " << reg(e2.reg) << '\n';
+        irfile << "cmp" << mode << " " << reg(res.reg) << ", " << reg(e1.reg) << ", " << reg(e2.reg) << '\n';
         return;
     }
     if(e1.reg == -1){
@@ -1610,7 +1638,7 @@ void generateCodeComp(exprVal res, exprVal e1, exprVal e2 , string mode){
             e2.reg = symbolTable[i].reg;
         }
     }
-    irfile << "comp" << mode << " " << reg(res.reg) << ", " << reg(e1.reg) << ", " << reg(e2.reg) << '\n';
+    irfile << "cmp" << mode << " " << reg(res.reg) << ", " << reg(e1.reg) << ", " << reg(e2.reg) << '\n';
 }
 
 void generateCodeJmpCond(exprVal exp, string mode, string label){
