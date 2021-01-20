@@ -6,7 +6,7 @@ num main()
 	a = 0;
 	b = 2;
 	c = 7;
-	if(c == 7){
+	if(c == -7){
 		numprint(c);
 	}
 	else{

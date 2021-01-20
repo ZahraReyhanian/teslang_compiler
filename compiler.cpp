@@ -605,7 +605,7 @@ void if_stmt(){
                     syntax_error("expected primary-expression before ')' token");
                 else
                 {
-                    if(isNum(t.tok)){
+                    if(isNum(t.tok) && t.reg == -1){
                         t.reg = ++ reg_number;
                         generateCodeMov(t, t);
                     }
@@ -816,7 +816,7 @@ exprVal assign_expr(){
                 continue;
             }
             else if(il) {//a[2] = 7
-                if(isNum(t2.tok)){
+                if(isNum(t2.tok) && t2.reg == -1){
                     t2.reg = ++ reg_number;
                     generateCodeMov(t2, t2);
                 }
@@ -1180,12 +1180,12 @@ exprVal unary_expr(exprVal temp){
         cout << tok;
     }
     exprVal t = postfix_expr(temp);
-    if(t.reg == -1){
-        t.reg = ++reg_number;
-        if(t.index != -1) symbolTable[t.index].reg = reg_number;
-        if(isNum(t.tok)) generateCodeMov(t, t);
-    }
     if(in){
+        if(t.reg == -1){ // todo check
+            t.reg = ++reg_number;
+            if(t.index != -1) symbolTable[t.index].reg = reg_number;
+            if(isNum(t.tok)) generateCodeMov(t, t);
+        }
         exprVal n;
         n.tok = "-1";
         n.type = NUM;
@@ -1255,7 +1255,8 @@ exprVal postfix_expr(exprVal temp){//todo add regiter to values list of identifi
             }
         }
         if(t2.reg == -1){
-            if(isNum(t2.tok)) {
+            if(isNum(t2.tok) && t2.reg == -1) {
+                if(t2.tok == "-1") syntax_error("index can not be -1");
                 t2.reg = ++ reg_number;
                 generateCodeMov(t2, t2);
             }
@@ -1438,11 +1439,12 @@ void clist(string var, int i, exprVal temp){// var if function name , i is index
     int j = 0;
     bool same = check_same_type(t, i, j);// t is type, i is the index in symbolTable and j is index of list in the function in symbolTable
     if(!same) syntax_error("illegal parameter!");
+    if(isNum(exp.tok) && exp.reg == -1){
+        exp.reg = ++ reg_number;
+        generateCodeMov(exp, exp);
+    }
     if(exp.reg == -1){
         exp.reg = ++ reg_number;
-    }
-    if(isNum(exp.tok)){
-        generateCodeMov(exp, exp);
     }
     else if(exp.itemList){
         irfile << "ld " << reg(++reg_number) << ", "<< reg(exp.reg) << endl;
@@ -1459,11 +1461,13 @@ void clist(string var, int i, exprVal temp){// var if function name , i is index
         j++;
         same = check_same_type(t, i, j);
         if(!same) syntax_error("illegal parameter!");
+        
+        if(isNum(exp.tok) && exp.reg == -1){
+            exp.reg = ++ reg_number;
+            generateCodeMov(exp, exp);
+        }
         if(exp.reg == -1){
             exp.reg = ++ reg_number;
-        }
-        if(isNum(exp.tok)){
-            generateCodeMov(exp, exp);
         }
         else if(exp.itemList){
             irfile << "ld " << reg(++reg_number) << ", "<< reg(exp.reg) << endl;
@@ -1624,7 +1628,7 @@ void generateCodeMov(exprVal e1, exprVal e2){
     string str = "mov ";
     str.append(reg(e1.reg));
     str.append(", ");
-    if(isNum(e2.tok)){//todo check neg num
+    if(isNum(e2.tok)){
         str.append(e2.tok);
         irfile << str << '\n';
     }
@@ -1719,12 +1723,18 @@ void generateCodeArith(exprVal res, exprVal e1, exprVal e2, string mode){
 void generateCodeComp(exprVal res, exprVal e1, exprVal e2 , string mode){
     if (isNum(e1.tok))
     {
-        e1.reg = ++ reg_number;
-        generateCodeMov(e1, e1);
+        if(e1.reg == -1){
+            e1.reg = ++ reg_number;
+            generateCodeMov(e1, e1);
+        }
+        
         if(isNum(e2.tok))
         {
-            e2.reg = ++ reg_number;
-            generateCodeMov(e2, e2);
+            if(e2.reg == -1){
+                e2.reg = ++ reg_number;
+                generateCodeMov(e2, e2);
+            }
+            
             irfile << "cmp" << mode << " " << reg(res.reg) << ", " << reg(reg_number - 1) << ", " << reg(reg_number) << '\n';            
             return;
         }
@@ -1744,8 +1754,11 @@ void generateCodeComp(exprVal res, exprVal e1, exprVal e2 , string mode){
     }
     else if(isNum(e2.tok))
     {
-        e2.reg = ++ reg_number;
-        generateCodeMov(e2, e2);
+        if(e2.reg == -1){
+            e2.reg = ++ reg_number;
+            generateCodeMov(e2, e2);
+        }
+        
         if(e1.reg == -1)
         {
             int i = isInSymbolTable(e1.tok, false);
