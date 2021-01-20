@@ -87,13 +87,13 @@ bool isexpr = false;
 struct table
 {
     string var;
-    vector<table> values;//for list type
+    // vector<table> values;//for list type
     string type;
     bool isFunc;
     int numberOfparam;
     int reg = -1;
     vector<table> list;
-    int index = -1;//index of list item in values vector
+    // int index = -1;//index of list item in values vector
 };
 vector<table> symbolTable;
 
@@ -101,7 +101,7 @@ struct exprVal
 {
     string tok;
     string type;
-    int val;
+    // int val;
     bool isFunc;
     bool itemList = false;
     int reg = -1;
@@ -880,8 +880,25 @@ exprVal or_expr(exprVal temp){
     string type = t1.type;
     string type2;
     bool err = false;
+    string lbl;
+    if(getToken() == "||"){
+        lbl = label();
+    }
+    bool in = false;
     while (getToken() == "||")
     {
+        if(!in){
+            if(temp.reg == -1){
+                temp.reg = ++reg_number;
+                if(temp.index != -1){
+                    symbolTable[temp.index].reg = temp.reg;
+                }
+            }
+            generateCodeMov(temp,t1);
+            generateCodeJmpCond(temp, "jnz", lbl);
+        } 
+        else generateCodeJmpCond(t2, "jnz", lbl);
+        in = true;
         isexpr = true;
         dropToken();
         t2 = and_expr(temp);
@@ -891,9 +908,22 @@ exprVal or_expr(exprVal temp){
             syntax_error("illegal or expression !");
         } 
     }
+    if(in){
+        if(t2.reg == -1){
+            t2.reg = ++reg_number;
+            if(t2.index != -1){
+                symbolTable[t2.index].reg = t2.reg;
+            }
+        }
+        if(temp.index != -1) temp.reg = symbolTable[temp.index].reg;
+        generateCodeMov(temp, t2);
+        generateCodeLable(lbl); 
+        temp.type = NUM;
+        return temp;
+    }
     if (!err)
     {
-        t1.type = type;
+        t1.type = NUM;
     }
 
     return t1; 
@@ -905,8 +935,16 @@ exprVal and_expr(exprVal temp){
     string type = t1.type;
     string type2;
     bool err = false;
+    string lbl;
+    if(getToken() == "&&"){
+        lbl = label();
+    }
+    bool in = false;
     while (getToken() == "&&")
     {
+        if(!in) generateCodeJmpCond(t1, "jz", lbl);
+        else generateCodeJmpCond(t2, "jz", lbl);
+        in = true;
         isexpr = true;
         dropToken();
         t2 = equ_expr(temp);
@@ -916,9 +954,28 @@ exprVal and_expr(exprVal temp){
             syntax_error("illegal and expression !");
         } 
     }
+    if(in){
+        if(t2.reg == -1){
+            t2.reg = ++reg_number;
+            if(t2.index != -1){
+                symbolTable[t2.index].reg = t2.reg;
+            }
+        }
+        if(temp.index != -1) temp.reg = symbolTable[temp.index].reg;
+        if(temp.reg == -1){
+            temp.reg = ++reg_number;
+            if(temp.index != -1){
+                symbolTable[temp.index].reg = temp.reg;
+            }
+        }
+        generateCodeMov(temp, t2);
+        generateCodeLable(lbl); 
+        temp.type = NUM;
+        return temp;
+    }
     if (!err)
     {
-        t1.type = type;
+        t1.type = NUM;
     }
     
     return t1;
@@ -1197,7 +1254,6 @@ exprVal prim_expr(exprVal temp){
     {
         t.type = NUM;
         t.tok = getToken();
-        t.val = stoi(t.tok);
         num();
         return t;
     }
@@ -1335,6 +1391,7 @@ void clist(string var, int i, exprVal temp){// var if function name , i is index
             exp.reg = reg_number;
         }
         items.append(cama.append(reg(exp.reg)));
+        cama =", ";
         n ++;
     }
     if (!err)
@@ -1642,6 +1699,10 @@ void generateCodeComp(exprVal res, exprVal e1, exprVal e2 , string mode){
 }
 
 void generateCodeJmpCond(exprVal exp, string mode, string label){
+    if(exp.reg == -1){
+        exp.reg = ++reg_number;
+        if(exp.index != -1) symbolTable[exp.index].reg = exp.reg;
+    }
     irfile << mode << " " << reg(exp.reg) << ", " << label << '\n';
 }
 
