@@ -1,28 +1,22 @@
 proc  main
+mov r1, 0
 mov r0, 0
-mov r1, 2
-mov r2, 7
-mov r3, r2
-jnz r3, label0
-jz r1, label1
-mov r3, r0
-label1:
-mov r3, r3
-label0:
-jz r3, label2
+mov r3, 2
+mov r2, 2
 mov r5, 7
-cmp<= r4, r2, r5
-jz r4, label4
-call iput, r2
-jmp label5
-label4:
-mov r6, 10000
-call iput, r6
-label5:
-jmp label3
-label2:
-call iput, r1
-label3:
+mov r4, 7
+mov r6, 7
+mov r8, 7
+cmp= r7, r4, r8
+jz r7, label0
+call iput, r4
+jmp label1
+label0:
+mov r9, 10000
+mov r9, 10000
+call iput, r9
+label1:
+mov r10, 0
 mov r0,0
 ret
 

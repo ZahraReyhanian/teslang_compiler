@@ -149,7 +149,7 @@ exprVal mul_expr(exprVal temp);
 exprVal unary_expr(exprVal temp);
 exprVal postfix_expr(exprVal temp);
 exprVal prim_expr(exprVal temp);
-void unary_oprator();
+string unary_oprator();
 int flist(vector<table> &list);
 void clist(string var, int i, exprVal temp);
 string type();
@@ -390,6 +390,7 @@ bool isIdentifier(string tok){
 }
 
 bool isNum(string tok){
+    if(tok == "-1") return true;
     if(regex_match(tok, regex("[0-9]+"))) return true;
     else return false;
 }
@@ -987,8 +988,10 @@ exprVal equ_expr(exprVal temp){
     string type = t1.type;
     string type2;
     bool err = false;
+    bool in = false;
     while (getToken() == "==" || getToken() == "!=")
     {
+        string tok = getToken();
         isexpr = true;
         dropToken();
         t2 = relational_expr(temp);
@@ -996,13 +999,50 @@ exprVal equ_expr(exprVal temp){
         if(type != type2){
             err = true;
             syntax_error("illegal equality expression !");
-        } 
+        }
+        if(in == false){
+            if (temp.reg == -1)
+            {
+                reg_number ++;
+                temp.reg = reg_number;
+            }
+            generateCodeComp(temp, t1, t2 , "=");
+            if(tok == "!=") {
+                string lbl = label();
+                string lbl1 = label();
+                generateCodeJmpCond(temp, "jz", lbl);
+                irfile << "mov " << reg(temp.reg) << ", " << "0\n";
+                generateCodeJmp(lbl1);
+                generateCodeLable(lbl);
+                irfile << "mov " << reg(temp.reg) << ", " << "1\n";
+                generateCodeLable(lbl1);
+            }
+        }
+        else{
+            generateCodeComp(temp, temp, t2 , "=");
+            if(tok == "!=") {
+                string lbl = label();
+                string lbl1 = label();
+                generateCodeJmpCond(temp, "jz", lbl);
+                irfile << "mov " << reg(temp.reg) << ", " << "0\n";
+                generateCodeJmp(lbl1);
+                generateCodeLable(lbl);
+                irfile << "mov " << reg(temp.reg) << ", " << "1\n";
+                generateCodeLable(lbl1);
+            }
+        }
+        in = true;
     }
-    if(!err)
+    if (!err)
     {
         t1.type = type;
     }
-    return t1;
+    if (type == NUM)
+    {
+        temp.type = NUM;
+    }
+    if(in) return temp;
+    else return t1;
 }
 
 exprVal relational_expr(exprVal temp){
@@ -1130,13 +1170,50 @@ exprVal mul_expr(exprVal temp){
 }
 
 exprVal unary_expr(exprVal temp){
-    unary_oprator();
+    bool in = false;
+    string tok = unary_oprator();   
+    if(tok == "-" || tok == "!") in = true; 
     while (getToken() == "+" || getToken() == "-" || getToken() == "!")
     {
         isexpr = true;
-        unary_oprator();
+        tok.append(unary_oprator());
+        cout << tok;
     }
-    return postfix_expr(temp);
+    exprVal t = postfix_expr(temp);
+    if(t.reg == -1){
+        t.reg = ++reg_number;
+        if(t.index != -1) symbolTable[t.index].reg = reg_number;
+        if(isNum(t.tok)) generateCodeMov(t, t);
+    }
+    if(in){
+        exprVal n;
+        n.tok = "-1";
+        n.type = NUM;
+        n.reg = ++reg_number;
+        generateCodeMov(n, n);
+
+        int k = 0;
+        for (int i = tok.size() - 1; i >= 0; i--)
+        {   
+            if(tok[i] == '-'){
+                generateCodeArith(t, t, n, "mul ");
+            }
+            else if(tok[i] == '!' && k % 2 == 0)
+            {
+                irfile << "mov " << reg(t.reg) << ", 0\n";
+                k++;
+            }
+            else if(tok[i] == '!' && k % 2 == 1)
+            {
+                irfile << "mov " << reg(t.reg) << ", 1\n";
+                k++;
+            }
+        }
+        
+    }
+    
+    return t;
+    
 }
 
 exprVal postfix_expr(exprVal temp){//todo add regiter to values list of identifier in symbolTable
@@ -1286,11 +1363,13 @@ exprVal prim_expr(exprVal temp){
     
 }
 
-void unary_oprator(){
+string unary_oprator(){
+    string tok = getToken();
     if(getToken() == "+" || getToken() == "-" || getToken() == "!"){
         dropToken(); 
         isexpr = true;
-    }        
+    }
+    return tok;
 }
 
 int flist(vector<table> &list){
@@ -1563,12 +1642,17 @@ void generateCodeLd(exprVal e1, exprVal e2){
 void generateCodeArith(exprVal res, exprVal e1, exprVal e2, string mode){
     if (isNum(e1.tok))
     {
-        if(e1.reg == -1) e1.reg = ++ reg_number;
-        generateCodeMov(e1, e1);
+        if(e1.reg == -1) 
+        {
+            e1.reg = ++ reg_number;
+            generateCodeMov(e1, e1);
+        }
         if(isNum(e2.tok))
         {
-            if(e2.reg == -1) e2.reg = ++ reg_number;
-            generateCodeMov(e2, e2);
+            if(e2.reg == -1) {
+                e2.reg = ++ reg_number;
+                generateCodeMov(e2, e2);
+            }
             irfile << mode << reg(res.reg) << ", " << reg(e1.reg) << ", " << reg(e2.reg) << '\n';            
             return;
         }
@@ -1588,8 +1672,10 @@ void generateCodeArith(exprVal res, exprVal e1, exprVal e2, string mode){
     }
     else if(isNum(e2.tok))
     {
-        e2.reg = ++ reg_number;
-        generateCodeMov(e2, e2);
+        if(e2.reg == -1){
+            e2.reg = ++ reg_number;
+            generateCodeMov(e2, e2);
+        }
         if(e1.reg == -1)
         {
             int i = isInSymbolTable(e1.tok, false);
